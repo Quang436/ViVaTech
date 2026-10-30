@@ -191,7 +191,7 @@ export function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const unreadCount = currentUser ? notifications.filter((n) => n.unread).length : 0;
 
   return (
     <div className="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary flex flex-col justify-between">
@@ -230,17 +230,19 @@ export function App() {
         unreadNotificationCount={unreadCount}
       />
 
-      {/* Notifications Popover */}
-      <NotificationsPopover
-        notifications={notifications}
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        onMarkAllAsRead={handleMarkAllAsRead}
-        onSelectAction={(tab) => {
-          setActiveTab(tab);
-          setIsNotificationsOpen(false);
-        }}
-      />
+      {/* Notifications Popover (Chỉ mở khi đã đăng nhập) */}
+      {currentUser && (
+        <NotificationsPopover
+          notifications={notifications}
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          onSelectAction={(tab) => {
+            setActiveTab(tab);
+            setIsNotificationsOpen(false);
+          }}
+        />
+      )}
 
       {/* Auth Modal (Login / Register) */}
       <AuthModal
