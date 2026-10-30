@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_standard" name="shell-type"/>
+<title>VivaArena - Đăng Nhập &amp; Đăng Ký Phòng Phản Biện Luận Án AI</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-container": "#e6e9ff",
+            "primary-fixed": "#9cf2e8",
+            "inverse-surface": "#283044",
+            "on-surface": "#131b2e",
+            "primary-fixed-dim": "#80d5cb",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed-variant": "#003ea8",
+            "tertiary": "#0047bf",
+            "on-tertiary": "#ffffff",
+            "tertiary-fixed": "#dbe1ff",
+            "on-primary-fixed-variant": "#00504a",
+            "background": "#faf8ff",
+            "surface-bright": "#faf8ff",
+            "outline": "#6e7977",
+            "error-container": "#ffdad6",
+            "surface-container-low": "#f2f3ff",
+            "on-error-container": "#93000a",
+            "on-surface-variant": "#3e4947",
+            "tertiary-fixed-dim": "#b4c5ff",
+            "secondary-container": "#5bb8fe",
+            "surface-tint": "#006a63",
+            "on-primary-fixed": "#00201d",
+            "surface": "#faf8ff",
+            "primary": "#005c55",
+            "on-tertiary-fixed": "#00174b",
+            "surface-variant": "#dae2fd",
+            "outline-variant": "#bdc9c6",
+            "surface-container-highest": "#dae2fd",
+            "secondary": "#006398",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#00476e",
+            "primary-container": "#0f766e",
+            "on-primary-container": "#a3faef",
+            "tertiary-container": "#1e5fe7",
+            "surface-dim": "#d2d9f4",
+            "secondary-fixed": "#cce5ff",
+            "inverse-on-surface": "#eef0ff",
+            "error": "#ba1a1a",
+            "on-background": "#131b2e",
+            "on-secondary-fixed-variant": "#004b73",
+            "on-primary": "#ffffff",
+            "secondary-fixed-dim": "#93ccff",
+            "surface-container": "#eaedff",
+            "on-secondary-fixed": "#001d31",
+            "on-error": "#ffffff",
+            "surface-container-high": "#e2e7ff",
+            "inverse-primary": "#80d5cb"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "fontFamily": {
+            "headline": ["Newsreader", "serif"],
+            "display": ["Newsreader", "serif"],
+            "body": ["Manrope", "sans-serif"],
+            "label": ["Hanken Grotesk", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #faf8ff;
+        color: #131b2e;
+        font-family: 'Manrope', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, .font-editorial {
+        font-family: 'Newsreader', serif;
+      }
+      .font-label {
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+    }
+
+    @keyframes float-ambient {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-18px) rotate(2deg); }
+    }
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(20px) scale(1.06); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.1); }
+    }
+    @keyframes shimmer-btn {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .anim-float-1 { animation: float-ambient 10s ease-in-out infinite; }
+    .anim-float-2 { animation: float-slow 14s ease-in-out infinite; }
+    .anim-pulse-glow { animation: pulse-glow 7s ease-in-out infinite; }
+
+    .shimmer-button-layer {
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%);
+      background-size: 200% 100%;
+    }
+    .hover-lift {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 30px -8px rgba(0, 92, 85, 0.12), 0 6px 12px -4px rgba(0, 0, 0, 0.04);
+    }
+    .input-focus-glow:focus-within {
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary">
+<!-- DYNAMIC AMBIENT LIGHTING BACKGROUND (AURORA BLOBS) -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<!-- Subtle Chamber Watermark Layer -->
+<img alt="Ambient Chamber" class="w-full h-full object-cover object-center opacity-10 filter blur-[3px] scale-105" src="https://lh3.googleusercontent.com/aida/AEtjO1VJThFqnCcD20xZirVD3YkLTtPYTUYqZj2ejqvR-0Vp7QBf_oFwks_PVyV7_CLtBIigNgxF_TezDeTUGsp-ibofv5gRMJ3K4ngM1LGNXc9h8_T4xoHEVz7kHjFwHaR-b0--1UjbjyGnaO7wobDHQ5t_L2KE3nxCPre3aZiryr5fuu9p2Y0d4TStw6JNea2V3MmPpbffuIwWyDGXbKYwRS1k9y6BbG4De0C2G7t1DgaKEw"/>
+<div class="absolute inset-0 bg-gradient-to-b from-background/85 via-background/95 to-background"></div>
+<!-- Floating Aurora Light Blobs -->
+<div class="absolute -top-16 left-1/4 w-[540px] h-[540px] rounded-full bg-primary-fixed/40 blur-3xl anim-float-1"></div>
+<div class="absolute top-1/3 -right-20 w-[500px] h-[500px] rounded-full bg-secondary-fixed/35 blur-3xl anim-float-2"></div>
+<div class="absolute bottom-10 left-10 w-[460px] h-[460px] rounded-full bg-tertiary-fixed/25 blur-3xl anim-pulse-glow"></div>
+</div>
+<!-- ==================== HEADER NAVIGATION (6 Dashboard Items + Help & Lang) ==================== -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 shadow-xs">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+<!-- Brand Logo -->
+<div class="flex items-center gap-3 flex-shrink-0">
+<a class="flex items-center gap-2.5 group" data-path="trang-chu" href="#">
+<div class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">balance</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label font-bold text-base tracking-tight text-on-surface leading-none">VivaArena</span>
+<span class="font-label text-[10px] text-on-surface-variant font-medium tracking-wider mt-0.5 uppercase">Defense Simulator</span>
+</div>
+</a>
+</div>
+<!-- Main Navigation Links (Full 6 Tabs synchronized with Landing Page) -->
+<nav class="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl" data-active-classes="bg-surface-container-lowest text-primary font-semibold shadow-xs">
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="trang-chu" href="#">
+        Trang chủ
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="tai-lieu" href="#">
+        Tài liệu
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="khoi-tao-de-tai" href="#">
+        Thiết lập đề tài
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="phong-tranh-bien" href="#">
+        Tranh biện
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="bang-diem" href="#">
+        Đánh giá
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="kho-de-an" href="#">
+        Kho đề án
+      </a>
+</nav>
+<!-- Academic Actions, Language Switcher & Support -->
+<div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+<!-- Language Switcher -->
+<button class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-label font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" title="Ngôn ngữ hệ thống">
+<span class="material-symbols-outlined text-[16px] text-secondary">language</span>
+<span>VI</span>
+</button>
+<!-- Academic Help Center -->
+<a class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-xs font-label font-semibold text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px] text-primary">live_help</span>
+<span>Trợ giúp học thuật</span>
+</a>
+<!-- Notification Icon -->
+<button aria-label="Thông báo" class="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[19px]">notifications</span>
+</button>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN CONTENT AREA ==================== -->
+<main class="pt-20 sm:pt-24 min-h-[calc(100vh-5rem)] relative z-10 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="w-full max-w-6xl mx-auto flex flex-col gap-6">
+<!-- Top Status Indicator & Security Context -->
+<div class="flex flex-wrap items-center justify-between gap-3 text-xs font-label text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-lowest/90 border border-primary/25 text-primary font-bold shadow-xs">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          CỔNG XÁC THỰC HỌC THUẬT 2025
+        </span>
+<span class="hidden sm:inline text-outline-variant">•</span>
+<span class="hidden sm:inline">Môi trường bảo mật Đề tài cấp Viện &amp; Trường</span>
+</div>
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low border border-surface-container-high/60 shadow-xs text-[11px] text-primary font-semibold">
+<span class="material-symbols-outlined text-[15px] text-primary">verified_user</span>
+<span>Mã hóa RAG Ground-Truth TLS 1.3</span>
+</div>
+</div>
+<!-- Dual Balanced Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+<!-- ==================== LEFT COLUMN: ACADEMIC SHOWCASE ==================== -->
+<div class="lg:col-span-6 flex flex-col justify-between rounded-3xl bg-surface-container-lowest/80 backdrop-blur-md p-6 sm:p-8 border border-surface-container-high/80 shadow-md relative overflow-hidden group">
+<!-- Subtle Academic Chamber Backdrop -->
+<div class="absolute inset-0 pointer-events-none z-0">
+<div class="w-full h-full bg-cover bg-center opacity-15 filter blur-[1px]" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBbWzB-JcU5s-OIBnQ2Eiqqnm6Q9S9kkWNsLnHBr36YE4LlLzim-JYucLoWGisjoS1Ka1K8JTA0mEozdB_LcFFdtTR3gb16SnRdZ2JTik6k2cgqD5pLeWEWUhsgOLw_XEd7MiG9MwBfNiFUxkMDDNGxORd9bA69TcSOCy6eAmUFuu6YnVP5RxhMHStghIDRfDA9fRpBXQgqmfXQYvUazRP6P8oCAAdvrZbyZSOJniwu')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/90 to-transparent"></div>
+</div>
+<!-- Upper Section Content -->
+<div class="relative z-10 flex flex-col gap-5">
+<!-- Top Badges -->
+<div class="flex items-center justify-between">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low border border-primary/20 text-primary">
+<span class="material-symbols-outlined text-[17px]" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+<span class="font-label text-xs font-bold uppercase tracking-wider">VivaArena Academic Shield</span>
+</div>
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low text-xs font-label text-on-surface-variant border border-surface-container-high/60">
+<span class="material-symbols-outlined text-[15px] text-secondary">psychology</span>
+<span>AI Engine v4.2 CoT</span>
+</div>
+</div>
+<!-- Editorial Heading & Description -->
+<div>
+<h1 class="font-headline text-3xl sm:text-4xl font-semibold tracking-tight text-on-surface leading-[1.2]">
+              Vững vàng trước Hội đồng bảo vệ với <span class="text-primary italic">AI Phản biện Học thuật</span>.
+            </h1>
+<p class="font-body text-sm sm:text-base text-on-surface-variant mt-2.5 leading-relaxed">
+              Giả lập phản biện áp lực cao, truy vấn chéo dữ liệu và nâng tầm năng lực lập luận học thuật chuẩn mực quốc tế trước giờ G.
+            </p>
+</div>
+<!-- 3 Glassmorphic Value Pillar Cards -->
+<div class="flex flex-col gap-3 pt-1">
+<!-- Pillar 1 -->
+<div class="p-3.5 rounded-2xl bg-surface-container-low/70 border border-surface-container-high/60 backdrop-blur-sm flex items-start gap-3.5 hover-lift transition-all">
+<div class="w-9 h-9 rounded-xl bg-primary-fixed flex items-center justify-center text-on-primary-fixed flex-shrink-0 mt-0.5 shadow-xs">
+<span class="material-symbols-outlined text-[20px]">forum</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-sm font-bold text-on-surface">Luyện tập đối đáp 24/7</span>
+<span class="font-body text-xs text-on-surface-variant leading-relaxed">3 cấp độ Hội đồng AI chuẩn quốc tế: Phản biện 1, Phản biện 2 &amp; Chủ tịch đoàn.</span>
+</div>
+</div>
+<!-- Pillar 2 -->
+<div class="p-3.5 rounded-2xl bg-surface-container-low/70 border border-surface-container-high/60 backdrop-blur-sm flex items-start gap-3.5 hover-lift transition-all">
+<div class="w-9 h-9 rounded-xl bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed flex-shrink-0 mt-0.5 shadow-xs">
+<span class="material-symbols-outlined text-[20px]">menu_book</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-sm font-bold text-on-surface">RAG Ground Truth bóc tách đề án</span>
+<span class="font-body text-xs text-on-surface-variant leading-relaxed">Đối sánh từng số liệu, citation và phương pháp luận trực tiếp từ file PDF đồ án.</span>
+</div>
+</div>
+<!-- Pillar 3 -->
+<div class="p-3.5 rounded-2xl bg-surface-container-low/70 border border-surface-container-high/60 backdrop-blur-sm flex items-start gap-3.5 hover-lift transition-all">
+<div class="w-9 h-9 rounded-xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed flex-shrink-0 mt-0.5 shadow-xs">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-sm font-bold text-on-surface">Báo cáo Radar 4 trục &amp; Mẫu trả lời</span>
+<span class="font-body text-xs text-on-surface-variant leading-relaxed">Chấm điểm logic, kiến thức nền, phong thái ứng biến kèm kịch bản câu trả lời tối ưu.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Lower Section: Trusted Universities & Security Credentials -->
+<div class="relative z-10 mt-6 pt-5 border-t border-surface-container-high/70 flex flex-col gap-3">
+<div class="flex items-center justify-between text-xs font-label">
+<span class="uppercase tracking-wider text-outline font-semibold">Được tin dùng bởi học viên từ</span>
+<span class="text-primary font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">school</span> 1,280+ Luận văn bảo vệ xuất sắc
+            </span>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low/90 border border-surface-container-high/60 text-on-surface font-label text-xs font-semibold">
+              ĐH Bách Khoa TP.HCM
+            </span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low/90 border border-surface-container-high/60 text-on-surface font-label text-xs font-semibold">
+              ĐH Khoa Học Tự Nhiên
+            </span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low/90 border border-surface-container-high/60 text-on-surface font-label text-xs font-semibold">
+              ĐH Kinh Tế (UEH)
+            </span>
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low/90 border border-surface-container-high/60 text-on-surface font-label text-xs font-semibold">
+              ĐH Quốc Gia Hà Nội
+            </span>
+</div>
+</div>
+</div>
+<!-- ==================== RIGHT COLUMN: SMART AUTH FORM ==================== -->
+<div class="lg:col-span-6 flex flex-col justify-center">
+<div class="bg-surface-container-lowest/95 backdrop-blur-md p-6 sm:p-9 rounded-3xl border border-surface-container-high/80 shadow-xl flex flex-col gap-6 relative">
+<!-- Header and Switcher Tabs -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-headline text-2xl sm:text-3xl font-bold text-on-surface" id="auth-title">Đăng nhập tài khoản</h2>
+<p class="font-body text-xs sm:text-sm text-on-surface-variant mt-1" id="auth-subtitle">Nhập thông tin xác thực để truy cập phòng hội đồng AI</p>
+</div>
+<div class="w-11 h-11 rounded-2xl bg-primary-container/10 border border-primary/20 text-primary flex items-center justify-center shadow-xs">
+<span class="material-symbols-outlined text-[24px]">vpn_key</span>
+</div>
+</div>
+<!-- Segmented Tab Switcher -->
+<div class="grid grid-cols-2 gap-1 p-1 bg-surface-container-low rounded-2xl border border-surface-container-high/60 mt-1">
+<button class="py-2.5 px-3 rounded-xl font-label text-sm font-bold transition-all text-center bg-surface-container-lowest text-primary shadow-xs" id="tab-signin" onclick="switchAuthTab('signin')" type="button">
+                Đăng nhập
+              </button>
+<button class="py-2.5 px-3 rounded-xl font-label text-sm font-medium text-on-surface-variant hover:text-on-surface transition-all text-center" id="tab-register" onclick="switchAuthTab('register')" type="button">
+                Đăng ký tài khoản mới
+              </button>
+</div>
+</div>
+<!-- Academic Single Sign-On (SSO) Quick Buttons -->
+<div class="flex flex-col gap-2.5">
+<!-- Google Workspace / Edu Button -->
+<button class="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low border border-surface-container-high text-on-surface font-label text-sm font-semibold transition-all shadow-xs hover-lift group" type="button">
+<svg class="w-4 h-4 flex-shrink-0" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"></path>
+</svg>
+<span>Tiếp tục với Google (Email .edu.vn hoặc cá nhân)</span>
+</button>
+<!-- Microsoft 365 Academic Button -->
+<button class="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low border border-surface-container-high text-on-surface font-label text-sm font-semibold transition-all shadow-xs hover-lift" type="button">
+<svg class="w-4 h-4 flex-shrink-0" viewbox="0 0 21 21">
+<rect fill="#f25022" height="9" width="9" x="1" y="1"></rect>
+<rect fill="#7fba00" height="9" width="9" x="11" y="1"></rect>
+<rect fill="#00a4ef" height="9" width="9" x="11" y="1"></rect>
+<rect fill="#ffb900" height="9" width="9" x="11" y="1"></rect>
+</svg>
+<span>Đăng nhập với Microsoft 365 Academic</span>
+</button>
+</div>
+<!-- Divider -->
+<div class="flex items-center gap-3">
+<div class="flex-1 h-px bg-surface-container-high"></div>
+<span class="font-label text-xs uppercase tracking-wider text-outline px-1">hoặc đăng nhập bằng Email học thuật</span>
+<div class="flex-1 h-px bg-surface-container-high"></div>
+</div>
+<!-- Interactive Form Body -->
+<form class="flex flex-col gap-4" id="auth-form" onsubmit="handleAuthSubmit(event)">
+<!-- Registration-Only Fields -->
+<div class="hidden flex-col gap-4" id="register-fields">
+<div class="flex flex-col gap-1.5">
+<label class="font-label text-xs font-semibold text-on-surface flex items-center justify-between" for="full-name">
+<span>Họ và tên học viên / Nghiên cứu sinh</span>
+<span class="text-error font-normal text-[11px]">* Bắt buộc</span>
+</label>
+<div class="relative input-focus-glow rounded-xl">
+<span class="material-symbols-outlined absolute left-3.5 top-3 text-outline text-[19px]">person</span>
+<input class="w-full h-11 pl-11 pr-3 rounded-xl bg-surface-container-low border border-surface-container-high/80 text-on-surface font-body text-sm placeholder:text-outline/70 focus:outline-none focus:bg-surface-container-lowest focus:border-primary transition-all" id="full-name" placeholder="Nguyễn Văn Khang" type="text"/>
+</div>
+</div>
+<!-- Academic Role Selector -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label text-xs font-semibold text-on-surface">Vai trò học thuật của bạn</label>
+<div class="grid grid-cols-3 gap-2">
+<label class="flex items-center justify-center p-2 rounded-xl bg-surface-container-low border border-surface-container-high/60 hover:bg-surface-container cursor-pointer transition-all has-[:checked]:bg-primary-container has-[:checked]:text-on-primary has-[:checked]:border-primary text-center">
+<input checked="" class="sr-only" name="academic_role" type="radio" value="student"/>
+<span class="font-label text-xs select-none">Sinh viên Đồ án</span>
+</label>
+<label class="flex items-center justify-center p-2 rounded-xl bg-surface-container-low border border-surface-container-high/60 hover:bg-surface-container cursor-pointer transition-all has-[:checked]:bg-primary-container has-[:checked]:text-on-primary has-[:checked]:border-primary text-center">
+<input class="sr-only" name="academic_role" type="radio" value="researcher"/>
+<span class="font-label text-xs select-none">Nghiên cứu sinh</span>
+</label>
+<label class="flex items-center justify-center p-2 rounded-xl bg-surface-container-low border border-surface-container-high/60 hover:bg-surface-container cursor-pointer transition-all has-[:checked]:bg-primary-container has-[:checked]:text-on-primary has-[:checked]:border-primary text-center">
+<input class="sr-only" name="academic_role" type="radio" value="advisor"/>
+<span class="font-label text-xs select-none">Giảng viên / GVHD</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Email Input Field -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label text-xs font-semibold text-on-surface" for="email-input">Email trường học hoặc cá nhân</label>
+<span class="font-label text-[11px] text-primary font-medium">Tự nhận diện SSO Trường</span>
+</div>
+<div class="relative input-focus-glow rounded-xl">
+<span class="material-symbols-outlined absolute left-3.5 top-3 text-outline text-[19px]">alternate_email</span>
+<input class="w-full h-11 pl-11 pr-3 rounded-xl bg-surface-container-low border border-surface-container-high/80 text-on-surface font-body text-sm placeholder:text-outline/70 focus:outline-none focus:bg-surface-container-lowest focus:border-primary transition-all" id="email-input" placeholder="sinhvien@hcmut.edu.vn hoặc name@example.com" required="" type="email"/>
+</div>
+</div>
+<!-- Password Input Field -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label text-xs font-semibold text-on-surface" for="password-input">Mật khẩu bảo mật</label>
+<a class="font-label text-xs text-primary hover:underline font-medium" href="#" id="forgot-link">Quên mật khẩu?</a>
+</div>
+<div class="relative input-focus-glow rounded-xl">
+<span class="material-symbols-outlined absolute left-3.5 top-3 text-outline text-[19px]">lock</span>
+<input class="w-full h-11 pl-11 pr-11 rounded-xl bg-surface-container-low border border-surface-container-high/80 text-on-surface font-body text-sm placeholder:text-outline/70 focus:outline-none focus:bg-surface-container-lowest focus:border-primary transition-all" id="password-input" placeholder="••••••••••••" required="" type="password"/>
+<button aria-label="Ẩn hoặc hiện mật khẩu" class="absolute right-3.5 top-3 text-outline hover:text-on-surface focus:outline-none" onclick="togglePasswordVisibility()" type="button">
+<span class="material-symbols-outlined text-[19px]" id="pw-visibility-icon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Remember Me & Duration -->
+<div class="flex items-center justify-between pt-0.5">
+<label class="flex items-center gap-2 cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-primary/20 border-surface-container-high bg-surface-container-low cursor-pointer" id="remember-me" type="checkbox"/>
+<span class="font-body text-xs text-on-surface-variant">Ghi nhớ phiên đăng nhập</span>
+</label>
+<span class="inline-flex items-center gap-1 font-label text-xs text-secondary font-medium">
+<span class="material-symbols-outlined text-[14px]">lock_clock</span> 30 ngày an toàn
+              </span>
+</div>
+<!-- Submit Primary CTA Button (Teal Gradient + Shimmer Hover) -->
+<button class="w-full mt-1.5 py-3.5 px-6 rounded-xl bg-gradient-to-r from-primary-container via-primary to-primary-container hover:from-primary hover:to-primary text-on-primary font-label text-sm sm:text-base font-bold shadow-lg shadow-primary/20 transition-all duration-200 flex items-center justify-center gap-2 relative overflow-hidden group hover-lift" id="submit-cta" type="submit">
+<span class="relative z-10" id="cta-label">Đăng nhập vào VivaArena</span>
+<span class="material-symbols-outlined text-[18px] relative z-10 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+<div class="absolute inset-0 shimmer-button-layer hover:animate-pulse pointer-events-none"></div>
+</button>
+</form>
+<!-- Security Policy Note -->
+<div class="text-center pt-1 border-t border-surface-container-high/60">
+<p class="font-body text-xs text-on-surface-variant leading-relaxed">
+              Bằng việc tiếp tục, bạn đồng ý với 
+              <a class="text-primary hover:underline font-medium" href="#">Quy chuẩn Học thuật</a> 
+              và 
+              <a class="text-primary hover:underline font-medium" href="#">Chính sách Bảo mật Bản quyền Đề án</a> 
+              của VivaArena.
+            </p>
+</div>
+<!-- Academic Quick Help Box -->
+<div class="p-3 rounded-2xl bg-surface-container-low/70 border border-surface-container-high/50 flex items-center justify-between text-on-surface-variant text-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[17px] text-primary">support_agent</span>
+<span class="font-label">Cần cấp tài khoản nghiên cứu sinh theo Viện?</span>
+</div>
+<a class="font-label text-primary font-bold hover:underline" href="#">Liên hệ Quản trị</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Footnote Trust Indicator Band -->
+<div class="mt-4 pt-6 border-t border-surface-container-high/60 flex flex-wrap items-center justify-between gap-4 text-on-surface-variant font-label text-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[17px] text-primary">encrypted</span>
+<span>Dữ liệu luận văn được xử lý khép kín trong Sandboxed Private Vector Store của học viên.</span>
+</div>
+<div class="flex items-center gap-3 text-[11px] font-semibold">
+<span>ISO/IEC 27001 Phù hợp</span>
+<span>•</span>
+<span>Turnitin/SafeAssign Tương thích</span>
+<span>•</span>
+<span>Máy chủ chuẩn Tier-3 Việt Nam</span>
+</div>
+</div>
+</div>
+</main>
+<!-- ==================== MINIMAL CLEAN FOOTER ==================== -->
+<footer class="w-full bg-surface-container-lowest/90 backdrop-blur-sm border-t border-surface-container-high/60 py-6 mt-12 relative z-10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-on-surface-variant font-label text-xs">
+<div class="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+<span class="font-bold text-on-surface">VivaArena</span>
+<span>•</span>
+<span>Nền tảng giả lập phản biện khóa luận tốt nghiệp AI © 2025</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="hover:text-primary transition-colors" href="#">Quy chuẩn hội đồng</a>
+<a class="hover:text-primary transition-colors" href="#">Tiêu chí đánh giá</a>
+<a class="hover:text-primary transition-colors" href="#">Bảo mật &amp; Hỗ trợ</a>
+</div>
+</div>
+</footer>
+<!-- Inline Interactive Script (Tab Switching & Password Visibility) -->
+<script>
+  function switchAuthTab(mode) {
+    const tabSignIn = document.getElementById('tab-signin');
+    const tabRegister = document.getElementById('tab-register');
+    const title = document.getElementById('auth-title');
+    const subtitle = document.getElementById('auth-subtitle');
+    const registerFields = document.getElementById('register-fields');
+    const ctaLabel = document.getElementById('cta-label');
+    const forgotLink = document.getElementById('forgot-link');
+
+    if (mode === 'signin') {
+      tabSignIn.className = "py-2.5 px-3 rounded-xl font-label text-sm font-bold transition-all text-center bg-surface-container-lowest text-primary shadow-xs";
+      tabRegister.className = "py-2.5 px-3 rounded-xl font-label text-sm font-medium text-on-surface-variant hover:text-on-surface transition-all text-center";
+      
+      title.textContent = "Đăng nhập tài khoản";
+      subtitle.textContent = "Nhập thông tin xác thực để truy cập phòng hội đồng AI";
+      registerFields.classList.add('hidden');
+      registerFields.classList.remove('flex');
+      ctaLabel.textContent = "Đăng nhập vào VivaArena";
+      forgotLink.classList.remove('hidden');
+    } else {
+      tabRegister.className = "py-2.5 px-3 rounded-xl font-label text-sm font-bold transition-all text-center bg-surface-container-lowest text-primary shadow-xs";
+      tabSignIn.className = "py-2.5 px-3 rounded-xl font-label text-sm font-medium text-on-surface-variant hover:text-on-surface transition-all text-center";
+      
+      title.textContent = "Tạo tài khoản học thuật mới";
+      subtitle.textContent = "Đăng ký miễn phí để nhận 3 lượt giả lập phản biện đồ án";
+      registerFields.classList.remove('hidden');
+      registerFields.classList.add('flex');
+      ctaLabel.textContent = "Khởi tạo tài khoản & Đề tài mới";
+      forgotLink.classList.add('hidden');
+    }
+  }
+
+  function togglePasswordVisibility() {
+    const pwInput = document.getElementById('password-input');
+    const pwIcon = document.getElementById('pw-visibility-icon');
+    if (pwInput.type === 'password') {
+      pwInput.type = 'text';
+      pwIcon.textContent = 'visibility_off';
+    } else {
+      pwInput.type = 'password';
+      pwIcon.textContent = 'visibility';
+    }
+  }
+
+  function handleAuthSubmit(e) {
+    e.preventDefault();
+    const ctaBtn = document.getElementById('submit-cta');
+    const origHtml = ctaBtn.innerHTML;
+    
+    ctaBtn.disabled = true;
+    ctaBtn.innerHTML = `
+      <span class="inline-block animate-spin material-symbols-outlined text-[18px]">sync</span>
+      <span>Đang kết nối Hội đồng AI...</span>
+    `;
+
+    setTimeout(() => {
+      ctaBtn.disabled = false;
+      ctaBtn.innerHTML = origHtml;
+      window.location.hash = '#khoi-tao-de-tai';
+    }, 900);
+  }
+</script>
+</body></html>
