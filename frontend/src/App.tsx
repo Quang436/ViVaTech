@@ -7,6 +7,7 @@ import { DocumentsView } from './components/DocumentsView';
 import { ArchiveView } from './components/ArchiveView';
 import { NotificationsPopover, type NotificationItem } from './components/NotificationsPopover';
 import { AuthModal } from './components/AuthModal';
+import { HomeView } from './components/HomeView';
 import { api } from './services/api';
 import type { CouncilPersona, DebateSession, Scorecard } from './types';
 
@@ -84,6 +85,10 @@ export function App() {
     max_turns: number;
     mode: 'voice' | 'text';
   }) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setIsLoading(true);
     try {
       const session = await api.createSession({
@@ -170,10 +175,16 @@ export function App() {
       role: user.role,
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms',
     });
+    if (activeTab === 'home') {
+      setActiveTab('setup');
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setActiveSession(null);
+    setActiveTab('home');
+    setIsNotificationsOpen(false);
   };
 
   const handleMarkAllAsRead = () => {
@@ -197,6 +208,10 @@ export function App() {
         activeTab={activeTab}
         onSelectTab={(tab) => {
           if (tab === 'arena' && !activeSession) {
+            if (!currentUser) {
+              setIsAuthModalOpen(true);
+              return;
+            }
             handleStartDebate({
               title: 'Ứng dụng Heterogeneous GNN kết hợp ViBERT trong phân tích văn bản học thuật',
               max_turns: 5,
@@ -236,7 +251,22 @@ export function App() {
 
       {/* Main View Router */}
       <div className="relative z-10 flex-1 flex flex-col">
-        {(activeTab === 'setup' || activeTab === 'home') && (
+        {activeTab === 'home' && (
+          <HomeView
+            onStartSetup={() => {
+              if (!currentUser) {
+                setIsAuthModalOpen(true);
+              } else {
+                setActiveTab('setup');
+              }
+            }}
+            onExploreArchive={() => setActiveTab('archive')}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            user={currentUser}
+          />
+        )}
+
+        {activeTab === 'setup' && (
           <SetupView
             selectedPersona={selectedPersona}
             onSelectPersona={(p) => setSelectedPersona(p)}
@@ -244,6 +274,24 @@ export function App() {
             isLoading={isLoading}
             onFileUpload={api.uploadDocument}
           />
+        )}
+
+        {activeTab === 'arena' && !activeSession && (
+          <div className="pt-28 pb-16 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary-fixed/40 text-primary flex items-center justify-center">
+              <span className="material-symbols-outlined text-3xl">psychology</span>
+            </div>
+            <h2 className="font-headline text-2xl font-bold text-on-surface">Chưa có phiên tranh biện hoạt động</h2>
+            <p className="font-body text-xs sm:text-sm text-on-surface-variant max-w-md">
+              Vui lòng thiết lập đề tài và chọn Hội đồng phản biện để bắt đầu phiên tranh biện AI.
+            </p>
+            <button
+              onClick={() => setActiveTab('setup')}
+              className="px-5 py-2.5 rounded-xl bg-primary text-white font-label text-xs sm:text-sm font-bold hover:bg-primary-container transition-all cursor-pointer border-none"
+            >
+              Đến Thiết lập đề tài
+            </button>
+          </div>
         )}
 
         {activeTab === 'arena' && activeSession && (

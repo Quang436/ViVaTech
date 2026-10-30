@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
           <button
-            onClick={() => onSelectTab('setup')}
+            onClick={() => onSelectTab('home')}
             className="flex items-center gap-2.5 group text-left cursor-pointer border-none bg-transparent p-0 flex-shrink-0"
           >
             <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors flex-shrink-0">
@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Main Navigation Links (Strict 6 Items - whitespace-nowrap prevents line wrapping) */}
         <nav className="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl flex-shrink-0">
           <button
-            onClick={() => onSelectTab('setup')}
+            onClick={() => onSelectTab('home')}
             className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'home'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
