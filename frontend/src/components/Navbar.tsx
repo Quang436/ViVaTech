@@ -17,17 +17,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 lg:gap-4">
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
           <button
             onClick={() => onSelectTab('setup')}
-            className="flex items-center gap-2.5 group text-left cursor-pointer border-none bg-transparent p-0"
+            className="flex items-center gap-2.5 group text-left cursor-pointer border-none bg-transparent p-0 flex-shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors">
+            <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors flex-shrink-0">
               <span className="material-symbols-outlined text-[20px]">balance</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col whitespace-nowrap">
               <span className="font-label font-bold text-base tracking-tight text-on-surface leading-none">
                 VivaArena
               </span>
@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Session Tag */}
-          <div className="hidden xl:flex items-center gap-2 text-xs font-label pl-3 border-l border-surface-container-high">
+          <div className="hidden xl:flex items-center gap-2 text-xs font-label pl-3 border-l border-surface-container-high whitespace-nowrap flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="font-semibold text-on-surface">Khóa luận 2025</span>
             <span className="text-outline-variant">/</span>
@@ -48,11 +48,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Main Navigation Links (Strict 6 Items Matching Stitch) */}
-        <nav className="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl">
+        {/* Main Navigation Links (Strict 6 Items - whitespace-nowrap prevents line wrapping) */}
+        <nav className="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl flex-shrink-0">
           <button
             onClick={() => onSelectTab('setup')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'home'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -63,7 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectTab('documents')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'documents'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectTab('setup')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'setup'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -85,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectTab('arena')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'arena'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectTab('scorecard')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'scorecard'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -107,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectTab('archive')}
-            className={`px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none ${
+            className={`whitespace-nowrap px-3 lg:px-3.5 py-1.5 rounded-lg font-label text-sm transition-all cursor-pointer border-none flex-shrink-0 ${
               activeTab === 'archive'
                 ? 'bg-surface-container-lowest text-primary font-semibold shadow-xs'
                 : 'bg-transparent text-on-surface-variant hover:text-on-surface'
@@ -118,22 +118,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Student Profile & Notification Action */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 whitespace-nowrap">
           <button
             aria-label="Thông báo"
-            className="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors relative cursor-pointer border-none"
+            className="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors relative cursor-pointer border-none flex-shrink-0"
           >
             <span className="material-symbols-outlined text-[20px]">notifications</span>
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
           </button>
 
-          <div className="flex items-center gap-2 pl-1 border-l border-surface-container-high">
+          <div className="flex items-center gap-2 pl-1 border-l border-surface-container-high flex-shrink-0">
             <img
               alt="Avatar học viên"
-              className="w-8 h-8 rounded-full ring-2 ring-primary/20 object-cover"
+              className="w-8 h-8 rounded-full ring-2 ring-primary/20 object-cover flex-shrink-0"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms"
             />
-            <div className="hidden sm:flex flex-col text-left leading-tight">
+            <div className="hidden sm:flex flex-col text-left leading-tight whitespace-nowrap">
               <span className="font-label text-xs text-on-surface font-semibold">Nguyễn Văn Khang</span>
               <span className="font-label text-[10px] text-on-surface-variant">Học viên Khóa 2025</span>
             </div>
