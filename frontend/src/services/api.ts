@@ -165,4 +165,14 @@ export const api = {
       };
     }
   },
+
+  // TTS Streaming Audio URL
+  getTtsAudioUrl(text: string, voice?: string, lang?: string): string {
+    const params = new URLSearchParams({
+      text,
+      ...(voice ? { voice } : {}),
+      ...(lang ? { lang } : {}),
+    });
+    return `${API_BASE_URL}/debate/tts?${params.toString()}`;
+  },
 };

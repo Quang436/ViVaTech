@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { DebateSession, CouncilPersona } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import { SpeakingAvatar } from './SpeakingAvatar';
 
 interface ArenaChamberProps {
   session: DebateSession;
@@ -35,7 +36,24 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     resetTranscript,
   } = useSpeechRecognition();
 
-  const { speak, isSpeaking, stop: stopSpeaking } = useSpeechSynthesis();
+  const {
+    speak,
+    isSpeaking,
+    audioVolume,
+    stop: stopSpeaking,
+    currentVoice,
+    setCurrentVoice,
+    voiceOptions,
+  } = useSpeechSynthesis();
+
+  // Set default voice matching persona gender/style
+  useEffect(() => {
+    if (persona === 'academic_reviewer') {
+      setCurrentVoice('vi-VN-HoaiMyNeural');
+    } else {
+      setCurrentVoice('vi-VN-NamMinhNeural');
+    }
+  }, [persona, setCurrentVoice]);
 
   // Reset state when turn changes
   useEffect(() => {
@@ -184,169 +202,76 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* ================= CỘT 1: HUMANOID AI EXAMINER LIVE FEED ================= */}
-          <section className="lg:col-span-4 flex flex-col">
-            <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-full hover-lift">
+          <section className="lg:col-span-4 flex flex-col gap-4">
+            {/* Real-time Lip-Sync Speaking Avatar */}
+            <SpeakingAvatar
+              speakerName={personaSpeakerName}
+              councilRole={personaCouncilRole}
+              isSpeaking={isSpeaking}
+              isThinking={isCouncilThinking}
+              audioVolume={audioVolume}
+              voiceEnabled={voiceEnabled}
+              onToggleVoice={onToggleVoice}
+              onStopVoice={stopSpeaking}
+              currentVoice={currentVoice}
+              onChangeVoice={(v) => {
+                setCurrentVoice(v);
+                speak(aiQuestion, v);
+              }}
+              voiceOptions={voiceOptions}
+            />
+
+            {/* Live Subtitles & Question Speech Bubble */}
+            <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
               <div>
-                {/* Live Digital Human Avatar Box */}
-                <div className="relative w-full rounded-xl overflow-hidden border border-primary/30 bg-surface-container-highest shadow-sm group">
-                  {/* Video Stream Frame */}
-                  <div className="relative aspect-[16/11] w-full overflow-hidden bg-slate-900">
-                    <img
-                      alt="AI Examiner Live Avatar"
-                      className="w-full h-full object-cover object-center anim-avatar-breathe transition-transform duration-700 group-hover:scale-105"
-                      src="/professor_avatar.png"
-                    />
-
-                    {/* Top Stream HUD Overlay */}
-                    <div className="absolute inset-x-0 top-0 p-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between text-white z-10">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-400/50 backdrop-blur-md">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 anim-live-pulse shadow-sm shadow-emerald-400"></span>
-                        <span className="font-label font-bold text-[10px] tracking-wider text-emerald-200 uppercase">
-                          AI Examiner Live
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] font-mono bg-black/60 px-2 py-0.5 rounded border border-white/10 text-slate-200 backdrop-blur-md">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
-                        <span>REC • 1080p 60fps</span>
-                      </div>
-                    </div>
-
-                    {/* Hologram Scanning Lines Effect */}
-                    <div
-                      className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-transparent h-16 w-full opacity-35"
-                      style={{ animation: 'avatar-scanline 4.5s linear infinite' }}
-                    ></div>
-
-                    {/* Bottom HUD: Active Speech State & Audio Visualizer Bars */}
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-10 flex items-end justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-label font-bold tracking-wider text-primary-fixed">
-                          Trạng thái phát biểu
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="font-label font-semibold text-xs text-white">
-                            {isCouncilThinking
-                              ? 'Đang phân tích suy luận CoT...'
-                              : isSpeaking
-                              ? 'Đang phát biểu chất vấn'
-                              : 'Đang lắng nghe thí sinh'}
-                          </span>
-                          {(isSpeaking || isCouncilThinking) && (
-                            <div className="flex items-end gap-0.5 h-3.5">
-                              <span className="w-1 bg-primary-fixed rounded-full wave-bar" style={{ animationDuration: '0.7s' }}></span>
-                              <span className="w-1 bg-primary-fixed rounded-full wave-bar" style={{ animationDuration: '1.1s' }}></span>
-                              <span className="w-1 bg-primary-fixed rounded-full wave-bar" style={{ animationDuration: '0.85s' }}></span>
-                              <span className="w-1 bg-primary-fixed rounded-full wave-bar" style={{ animationDuration: '1.3s' }}></span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Socratic Council Badge */}
-                      <div className="text-right">
-                        <span className="text-[10px] font-label font-bold text-slate-300 block">
-                          {personaSpeakerName}
-                        </span>
-                        <span className="text-[9px] font-label text-primary-fixed-dim/90 block">
-                          {personaCouncilRole}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI Sentiment & Examiner Cognitive HUD Bar */}
-                  <div className="bg-surface-container-low/90 px-3.5 py-2.5 border-t border-primary/20 flex items-center justify-between gap-3 text-xs font-label">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="material-symbols-outlined text-[16px] text-amber-600">psychology_alt</span>
-                      <span className="text-[11px] text-on-surface font-semibold truncate">
-                        Thái độ: Nghiêm nghị, chú ý cao độ (Attentive & Critical)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] text-on-surface-variant font-medium">Hoài nghi logic:</span>
-                      <span className="px-1.5 py-0.5 rounded bg-error-container/70 text-error text-[10px] font-bold">
-                        65%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Interactive Voice & Examiner Controls */}
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  <button
-                    onClick={onToggleVoice}
-                    className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-label font-semibold transition-all border shadow-2xs cursor-pointer ${
-                      voiceEnabled
-                        ? 'bg-primary-fixed/30 hover:bg-primary-fixed/50 text-on-primary-fixed-variant border-primary-fixed-dim/50'
-                        : 'bg-surface-container-low text-on-surface-variant border-surface-container-high'
-                    }`}
-                    title="Bật/Tắt giọng đọc AI"
-                  >
-                    <span className="material-symbols-outlined text-[15px] text-primary">
-                      {voiceEnabled ? 'volume_up' : 'volume_off'}
+                <div className="flex items-center justify-between text-xs font-label mb-2">
+                  <div className="flex items-center gap-1.5 font-bold text-secondary">
+                    <span className="material-symbols-outlined text-base">closed_caption</span>
+                    <span className="tracking-wide uppercase text-[11px]">
+                      Phụ đề chất vấn trực tiếp (Live Captions)
                     </span>
-                    <span>{voiceEnabled ? 'Giọng AI (Bật)' : 'Giọng AI (Tắt)'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => stopSpeaking()}
-                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-label font-semibold transition-all border border-surface-container-high/80 shadow-2xs cursor-pointer"
-                    title="Tạm dừng giọng nói AI"
-                  >
-                    <span className="material-symbols-outlined text-[15px] text-on-surface-variant">
-                      pause_circle
-                    </span>
-                    <span>Dừng giọng</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsCamActive(!isCamActive)}
-                    className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-label font-semibold transition-all border shadow-2xs cursor-pointer ${
-                      isCamActive
-                        ? 'bg-secondary-fixed/50 text-secondary border-secondary/40'
-                        : 'bg-surface-container-low hover:bg-surface-container text-on-surface border-surface-container-high/80'
-                    }`}
-                    title="Bật camera sinh viên đối ứng"
-                  >
-                    <span className="material-symbols-outlined text-[15px] text-secondary">videocam</span>
-                    <span>{isCamActive ? 'Cam Đang Bật' : 'Cam SV đối ứng'}</span>
-                  </button>
-                </div>
-
-                {/* Live Subtitles & Question Speech Bubble */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs font-label mb-2">
-                    <div className="flex items-center gap-1.5 font-bold text-secondary">
-                      <span className="material-symbols-outlined text-base">closed_caption</span>
-                      <span className="tracking-wide uppercase text-[11px]">
-                        Phụ đề chất vấn trực tiếp (Live Captions)
-                      </span>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                       Sync: 12ms
                     </span>
+                    <button
+                      onClick={() => speak(aiQuestion)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-fixed/30 hover:bg-primary-fixed/50 text-primary text-[11px] font-label font-bold transition-all border border-primary/20 cursor-pointer"
+                      title="Nghe lại câu hỏi bằng giọng đọc AI"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">volume_up</span>
+                      <span>Nghe lại</span>
+                    </button>
                   </div>
-                  <div className="relative bg-surface-container-low/80 border-l-4 border-primary rounded-r-2xl rounded-bl-2xl p-4 shadow-xs border-y border-r border-surface-container-high/50">
-                    <blockquote className="font-headline text-on-surface text-base italic leading-relaxed">
-                      {aiQuestion}
-                    </blockquote>
-                  </div>
+                </div>
+
+                <div className="relative bg-surface-container-low/80 border-l-4 border-primary rounded-r-2xl rounded-bl-2xl p-4 shadow-xs border-y border-r border-surface-container-high/50">
+                  <blockquote className="font-headline text-on-surface text-base italic leading-relaxed">
+                    {aiQuestion}
+                  </blockquote>
                 </div>
               </div>
 
               {/* Bottom Examiner Status */}
-              <div className="mt-4 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
+              <div className="mt-3 pt-2.5 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>
-                    AI Vision Tracking: <strong>Đang quan sát sinh viên</strong>
+                    AI Vision Tracking: <strong>Đang quan sát phong thái phản biện</strong>
                   </span>
                 </div>
                 <button
-                  onClick={() => speak(aiQuestion)}
-                  className="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border-none bg-transparent"
-                  title="Nghe lại câu hỏi"
+                  onClick={() => setIsCamActive(!isCamActive)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-label font-semibold border transition-all cursor-pointer ${
+                    isCamActive
+                      ? 'bg-secondary-fixed/50 text-secondary border-secondary/40'
+                      : 'bg-surface-container-low hover:bg-surface-container text-on-surface-variant border-surface-container-high'
+                  }`}
+                  title="Bật/Tắt camera sinh viên đối ứng"
                 >
-                  <span className="material-symbols-outlined text-base">replay</span>
+                  <span className="material-symbols-outlined text-[14px]">videocam</span>
+                  <span>{isCamActive ? 'Cam Bật' : 'Cam SV'}</span>
                 </button>
               </div>
             </div>
