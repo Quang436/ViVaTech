@@ -1,12 +1,57 @@
 import { useState } from 'react';
-import { Navbar, type ActiveTab } from './components/Navbar';
+import { Navbar, type ActiveTab, type UserProfile } from './components/Navbar';
 import { SetupView } from './components/SetupView';
 import { ArenaChamber } from './components/ArenaChamber';
 import { ScorecardView } from './components/ScorecardView';
 import { DocumentsView } from './components/DocumentsView';
 import { ArchiveView } from './components/ArchiveView';
+import { NotificationsPopover, type NotificationItem } from './components/NotificationsPopover';
+import { AuthModal } from './components/AuthModal';
 import { api } from './services/api';
 import type { CouncilPersona, DebateSession, Scorecard } from './types';
+
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'notif-1',
+    title: 'Hội đồng phản biện đã sẵn sàng',
+    description: 'Tài liệu "Do_An_Tot_Nghiep_AI_Khang_2025.pdf" đã hoàn tất bóc tách 18 phân đoạn RAG.',
+    time: '5 phút trước',
+    unread: true,
+    type: 'success',
+    actionLabel: 'Vào phòng tranh biện',
+    actionTab: 'arena',
+  },
+  {
+    id: 'notif-2',
+    title: 'Báo cáo đánh giá phiên gần nhất',
+    description: 'Kết quả phiên thử nghiệm đạt 83.5/100 (Hạng A-). Cần lưu ý bổ sung thông số định lượng VRAM GPU.',
+    time: '2 giờ trước',
+    unread: true,
+    type: 'academic',
+    actionLabel: 'Xem bảng điểm chi tiết',
+    actionTab: 'scorecard',
+  },
+  {
+    id: 'notif-3',
+    title: 'Khuyến nghị ôn tập PREP',
+    description: 'Giám khảo phát hiện lỗi né tránh số liệu thực nghiệm. Hãy rèn luyện trả lời theo cấu trúc Point-Reason-Example-Point.',
+    time: 'Hôm qua',
+    unread: false,
+    type: 'warning',
+    actionLabel: 'Xem kịch bản mẫu',
+    actionTab: 'scorecard',
+  },
+  {
+    id: 'notif-4',
+    title: 'Đã thêm giám khảo Stress-Test mới',
+    description: 'GS. Viện sĩ Hoàng Vĩnh đã sẵn sàng cho kịch bản truy vấn biên cực đoan và đối kháng cao.',
+    time: '2 ngày trước',
+    unread: false,
+    type: 'info',
+    actionLabel: 'Đổi cấp độ hội đồng',
+    actionTab: 'setup',
+  },
+];
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('setup');
@@ -16,6 +61,19 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCouncilThinking, setIsCouncilThinking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+
+  // Auth & User Profile State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>({
+    name: 'Nguyễn Văn Khang',
+    email: 'khang.nguyen@hcmut.edu.vn',
+    role: 'Học viên Khóa 2025',
+    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms',
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Notifications State
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Step 1: Start Debate Session
   const handleStartDebate = async (params: {
@@ -105,6 +163,25 @@ export function App() {
     setActiveTab('setup');
   };
 
+  const handleLoginSuccess = (user: { name: string; email: string; role: string }) => {
+    setCurrentUser({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms',
+    });
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
   return (
     <div className="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary flex flex-col justify-between">
       {/* ==================== AMBIENT LIGHTING BACKGROUND ==================== */}
@@ -119,7 +196,6 @@ export function App() {
       <Navbar
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          // If selecting arena but no active session, prompt or start default
           if (tab === 'arena' && !activeSession) {
             handleStartDebate({
               title: 'Ứng dụng Heterogeneous GNN kết hợp ViBERT trong phân tích văn bản học thuật',
@@ -132,6 +208,30 @@ export function App() {
         }}
         sessionCode={activeSession ? `#VV-${activeSession.id.slice(-4).toUpperCase()}` : '#VV-9042'}
         hasActiveSession={!!activeSession}
+        user={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
+        onOpenNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)}
+        unreadNotificationCount={unreadCount}
+      />
+
+      {/* Notifications Popover */}
+      <NotificationsPopover
+        notifications={notifications}
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onSelectAction={(tab) => {
+          setActiveTab(tab);
+          setIsNotificationsOpen(false);
+        }}
+      />
+
+      {/* Auth Modal (Login / Register) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       {/* Main View Router */}
@@ -216,7 +316,7 @@ export function App() {
         )}
       </div>
 
-      {/* Footer minimal info matching Academic Chamber */}
+      {/* Footer */}
       <footer className="relative z-10 border-t border-surface-container-high/60 py-4 px-4 sm:px-6 lg:px-8 text-center text-xs font-label text-on-surface-variant bg-surface-container-lowest/60 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
