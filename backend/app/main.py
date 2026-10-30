@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     print("=" * 60)
-    print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} Started")
-    print(f"📡 API Docs available at http://127.0.0.1:8000/docs")
+    print(f"[START] {settings.PROJECT_NAME} v{settings.VERSION} Started")
+    print(f"[DOCS] API Docs available at http://127.0.0.1:8000/docs")
     print("=" * 60)
     yield
     print("Shutting down VivaArena backend...")
