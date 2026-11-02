@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface SpeakingAvatarProps {
   speakerName: string;
@@ -27,163 +27,63 @@ export const SpeakingAvatar: React.FC<SpeakingAvatarProps> = ({
   onChangeVoice,
   voiceOptions,
 }) => {
-  const [isBlinking, setIsBlinking] = useState(false);
-  const [headTilt, setHeadTilt] = useState(0);
+  const speakingVideoRef = useRef<HTMLVideoElement>(null);
+  const listeningVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Natural eye-blink cycle every 3.5 - 5 seconds
+  // Ensure both videos continuously play seamlessly without interruption
   useEffect(() => {
-    let blinkTimeout: number;
-    let openTimeout: number;
-
-    const triggerBlink = () => {
-      setIsBlinking(true);
-      openTimeout = window.setTimeout(() => {
-        setIsBlinking(false);
-        const nextBlink = Math.random() * 2500 + 2500; // 2.5s - 5s
-        blinkTimeout = window.setTimeout(triggerBlink, nextBlink);
-      }, 130);
+    const playVideo = (v: HTMLVideoElement | null) => {
+      if (v) {
+        v.play().catch(() => {
+          // Autoplay policy fallback
+        });
+      }
     };
-
-    const initialBlink = window.setTimeout(triggerBlink, 2000);
-
-    return () => {
-      clearTimeout(initialBlink);
-      clearTimeout(blinkTimeout);
-      clearTimeout(openTimeout);
-    };
+    playVideo(speakingVideoRef.current);
+    playVideo(listeningVideoRef.current);
   }, []);
-
-  // Subtle natural head sway while speaking
-  useEffect(() => {
-    if (!isSpeaking) {
-      setHeadTilt(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setHeadTilt((Math.random() - 0.5) * 1.8);
-    }, 400);
-    return () => clearInterval(interval);
-  }, [isSpeaking]);
-
-  // Map audio volume to mouth opening parameters
-  // Volume is normalized between 0 and 1
-  const effectiveVolume = isSpeaking ? Math.max(audioVolume, 0.08) : 0;
-  const mouthOpenHeight = Math.min(18, Math.round(effectiveVolume * 18));
-  const mouthStretch = 1 + effectiveVolume * 0.18;
-  const jawDrop = Math.min(6, Math.round(effectiveVolume * 6));
 
   return (
     <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-full hover-lift">
       <div>
-        {/* ================= LIVE DIGITAL HUMAN STREAM BOX ================= */}
+        {/* ================= LIVE DIGITAL HUMAN AI STREAM BOX ================= */}
         <div className="relative w-full rounded-xl overflow-hidden border border-primary/30 bg-slate-950 shadow-md group select-none">
-          {/* Main Video Stream Frame */}
-          <div className="relative aspect-[16/11] w-full overflow-hidden bg-slate-950 flex items-center justify-center">
-            {/* Animated Face Container with Head Tilt and Breathing */}
-            <div
-              className={`relative w-full h-full transition-transform duration-300 ease-out ${
-                isSpeaking ? '' : 'anim-avatar-breathe'
+          {/* Main Video Stream Frame (16:10 aspect ratio matching 1376x768 / HD) */}
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-950 flex items-center justify-center">
+            {/* 1. Photorealistic AI Speaking Video */}
+            <video
+              ref={speakingVideoRef}
+              src="/professor_speaking.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-in-out pointer-events-none ${
+                isSpeaking ? 'opacity-100 z-10' : 'opacity-0 z-0'
               }`}
-              style={{
-                transform: `rotate(${headTilt}deg) scale(${isSpeaking ? 1.02 : 1.0})`,
-                transformOrigin: '50% 60%',
-              }}
-            >
-              {/* Base Professor Image */}
-              <img
-                alt={speakerName}
-                src="/professor_avatar.png"
-                className="w-full h-full object-cover object-center pointer-events-none"
-              />
+            />
 
-              {/* Natural Eye Blinking Overlay */}
-              {isBlinking && (
-                <div
-                  className="absolute pointer-events-none transition-opacity duration-75"
-                  style={{
-                    top: '37.8%',
-                    left: '42.5%',
-                    width: '15.5%',
-                    height: '3.8%',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '14%',
-                  }}
-                >
-                  {/* Left eyelid */}
-                  <div
-                    className="w-1/2 h-full rounded-full bg-[#3d2b24]/90 backdrop-blur-[1px] shadow-inner"
-                    style={{
-                      borderBottom: '1.5px solid #231611',
-                    }}
-                  />
-                  {/* Right eyelid */}
-                  <div
-                    className="w-1/2 h-full rounded-full bg-[#3d2b24]/90 backdrop-blur-[1px] shadow-inner"
-                    style={{
-                      borderBottom: '1.5px solid #231611',
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Dynamic Lip-Sync Mouth Rig */}
-              <div
-                className="absolute pointer-events-none flex items-center justify-center transition-all duration-75 ease-out"
-                style={{
-                  top: '55.2%',
-                  left: '46.8%',
-                  width: '6.6%',
-                  height: '4.8%',
-                  transform: `translateY(${jawDrop}px) scaleX(${mouthStretch})`,
-                  transformOrigin: '50% 10%',
-                }}
-              >
-                {effectiveVolume > 0.05 ? (
-                  /* Speaking state: Animated open mouth with teeth and oral cavity */
-                  <div
-                    className="relative rounded-full overflow-hidden flex flex-col items-center justify-between shadow-inner transition-all duration-75"
-                    style={{
-                      width: '100%',
-                      height: `${Math.max(6, mouthOpenHeight)}px`,
-                      backgroundColor: '#1d0c0e',
-                      borderTop: '1.5px solid #7c3b3f',
-                      borderBottom: '2px solid #6b2e32',
-                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.85)',
-                    }}
-                  >
-                    {/* Upper teeth enamel */}
-                    <div
-                      className="w-[78%] rounded-b-sm bg-gradient-to-b from-[#f2efe9] to-[#d6cfc5] shadow-2xs"
-                      style={{ height: `${Math.min(3.5, mouthOpenHeight * 0.35)}px` }}
-                    />
-
-                    {/* Tongue articulation */}
-                    <div
-                      className="w-[70%] rounded-t-full bg-gradient-to-t from-[#9e464c] to-[#b85b62]"
-                      style={{ height: `${Math.min(4, mouthOpenHeight * 0.45)}px` }}
-                    />
-                  </div>
-                ) : (
-                  /* Idle / closed mouth: Natural lip line */
-                  <div
-                    className="w-full h-1.5 rounded-full bg-[#5f2b2e]/90 shadow-2xs transition-all duration-150"
-                    style={{
-                      borderTop: '1px solid #7a3539',
-                      borderBottom: '1px solid #4a1d20',
-                    }}
-                  />
-                )}
-              </div>
-            </div>
+            {/* 2. Photorealistic AI Attentive Listening & Blinking Video */}
+            <video
+              ref={listeningVideoRef}
+              src="/professor_listening.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-in-out pointer-events-none ${
+                !isSpeaking ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            />
 
             {/* Top Stream HUD Overlay */}
-            <div className="absolute inset-x-0 top-0 p-3 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between text-white z-10">
+            <div className="absolute inset-x-0 top-0 p-3 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between text-white z-20">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-400/50 backdrop-blur-md">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 anim-live-pulse shadow-sm shadow-emerald-400"></span>
                 <span className="font-label font-bold text-[10px] tracking-wider text-emerald-200 uppercase">
-                  AI Examiner Live Lip-Sync
+                  {isSpeaking ? 'AI Examiner Speaking' : 'AI Examiner Listening'}
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[11px] font-mono bg-black/60 px-2 py-0.5 rounded border border-white/10 text-slate-200 backdrop-blur-md">
@@ -192,66 +92,71 @@ export const SpeakingAvatar: React.FC<SpeakingAvatarProps> = ({
               </div>
             </div>
 
-            {/* Hologram Scanning Lines Effect */}
+            {/* Subtle Scanning Hologram Ambient Lines */}
             <div
-              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-transparent h-16 w-full opacity-35"
-              style={{ animation: 'avatar-scanline 4.5s linear infinite' }}
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent h-16 w-full opacity-30 z-10"
+              style={{ animation: 'avatar-scanline 5s linear infinite' }}
             ></div>
 
-            {/* Bottom HUD: Active Speech State & Audio Visualizer Bars */}
-            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-10 flex items-end justify-between">
+            {/* Bottom HUD: Live Status & Speech Waveform */}
+            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/95 via-black/65 to-transparent z-20 flex items-end justify-between">
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-label font-bold tracking-wider text-primary-fixed">
-                  Trạng thái phát biểu
+                  Trạng thái hội đồng
                 </span>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="font-label font-semibold text-xs text-white">
                     {isThinking
                       ? 'Đang phân tích suy luận CoT...'
                       : isSpeaking
-                      ? 'Đang phát biểu chất vấn (AI Speaking)'
-                      : 'Đang lắng nghe thí sinh (Listening)'}
+                      ? 'Giáo sư đang phát biểu chất vấn (Speaking)'
+                      : 'Đang chăm chú lắng nghe thí sinh (Listening)'}
                   </span>
-                  {(isSpeaking || isThinking) && (
+                  {isSpeaking ? (
                     <div className="flex items-end gap-0.5 h-3.5">
                       <span
                         className="w-1 bg-primary-fixed rounded-full wave-bar"
                         style={{
-                          height: isSpeaking ? `${Math.max(4, audioVolume * 14)}px` : '8px',
+                          height: `${Math.max(4, audioVolume * 15)}px`,
                           animationDuration: '0.6s',
                         }}
                       ></span>
                       <span
                         className="w-1 bg-primary-fixed rounded-full wave-bar"
                         style={{
-                          height: isSpeaking ? `${Math.max(5, audioVolume * 16)}px` : '12px',
+                          height: `${Math.max(6, audioVolume * 18)}px`,
                           animationDuration: '0.9s',
                         }}
                       ></span>
                       <span
                         className="w-1 bg-primary-fixed rounded-full wave-bar"
                         style={{
-                          height: isSpeaking ? `${Math.max(3, audioVolume * 13)}px` : '6px',
+                          height: `${Math.max(4, audioVolume * 14)}px`,
                           animationDuration: '0.75s',
                         }}
                       ></span>
                       <span
                         className="w-1 bg-primary-fixed rounded-full wave-bar"
                         style={{
-                          height: isSpeaking ? `${Math.max(6, audioVolume * 18)}px` : '14px',
+                          height: `${Math.max(7, audioVolume * 20)}px`,
                           animationDuration: '1.1s',
                         }}
                       ></span>
                     </div>
+                  ) : (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px]">
+                      <span className="material-symbols-outlined text-[13px] animate-pulse">hearing</span>
+                      <span>Chớp mắt & lắng nghe</span>
+                    </div>
                   )}
                 </div>
               </div>
-              {/* Socratic Council Badge */}
+              {/* Socratic Council Identity Badge */}
               <div className="text-right">
-                <span className="text-[10px] font-label font-bold text-slate-300 block">
+                <span className="text-[10px] font-label font-bold text-slate-200 block">
                   {speakerName}
                 </span>
-                <span className="text-[9px] font-label text-primary-fixed-dim/90 block">
+                <span className="text-[9px] font-label text-primary-fixed-dim block">
                   {councilRole}
                 </span>
               </div>
@@ -259,17 +164,21 @@ export const SpeakingAvatar: React.FC<SpeakingAvatarProps> = ({
           </div>
 
           {/* AI Sentiment & Examiner Cognitive HUD Bar */}
-          <div className="bg-surface-container-low/90 px-3.5 py-2.5 border-t border-primary/20 flex items-center justify-between gap-3 text-xs font-label">
+          <div className="bg-surface-container-low/95 px-3.5 py-2.5 border-t border-primary/20 flex items-center justify-between gap-3 text-xs font-label">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="material-symbols-outlined text-[16px] text-amber-600">psychology_alt</span>
+              <span className="material-symbols-outlined text-[16px] text-amber-500">
+                {isSpeaking ? 'record_voice_over' : 'visibility'}
+              </span>
               <span className="text-[11px] text-on-surface font-semibold truncate">
-                Thái độ: Nghiêm nghị, chú ý cao độ (Attentive & Critical)
+                {isSpeaking
+                  ? 'Thái độ: Nghiêm nghị, chất vấn học thuật chuẩn mực'
+                  : 'Thái độ: Tập trung lắng nghe, quan sát & chớp mắt tự nhiên'}
               </span>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-[10px] text-on-surface-variant font-medium">Khẩu hình:</span>
-              <span className="px-1.5 py-0.5 rounded bg-primary-fixed/40 text-primary text-[10px] font-bold">
-                {isSpeaking ? 'Mở miệng phát âm' : 'Khép miệng'}
+              <span className="text-[10px] text-on-surface-variant font-medium">Chế độ AI:</span>
+              <span className="px-2 py-0.5 rounded-full bg-primary-fixed/40 text-primary text-[10px] font-bold">
+                {isSpeaking ? 'Video phát âm' : 'Video lắng nghe'}
               </span>
             </div>
           </div>

@@ -46,6 +46,7 @@ backend/uploads/*
 SETUP VIDTOOLS AI.exe
 CauHinhToolAI.zip
 *.mp4
+!frontend/public/*.mp4
 
 # IDE / OS
 .DS_Store
