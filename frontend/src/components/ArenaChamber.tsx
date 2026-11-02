@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { DebateSession, CouncilPersona } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
-import { SpeakingAvatar } from './SpeakingAvatar';
+import { AiExaminer } from './AiExaminer';
 
 interface ArenaChamberProps {
   session: DebateSession;
@@ -203,8 +203,8 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* ================= CỘT 1: HUMANOID AI EXAMINER LIVE FEED ================= */}
           <section className="lg:col-span-4 flex flex-col gap-4">
-            {/* Real-time Lip-Sync Speaking Avatar */}
-            <SpeakingAvatar
+            {/* Real-time AI Examiner Video Stream */}
+            <AiExaminer
               speakerName={personaSpeakerName}
               councilRole={personaCouncilRole}
               isSpeaking={isSpeaking}
