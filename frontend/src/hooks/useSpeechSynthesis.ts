@@ -218,7 +218,11 @@ export function useSpeechSynthesis() {
         await audio.play();
         setIsSpeaking(true);
         startAnalyserLoop();
-      } catch (err) {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Play was aborted by stop() or rapid turn transition, ignore safely
+          return;
+        }
         console.warn('Backend Neural TTS error, falling back to Web Speech API:', err);
         speakWebSpeech(cleanText);
       }
