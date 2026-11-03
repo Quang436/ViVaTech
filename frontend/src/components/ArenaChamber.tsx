@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { DebateSession, CouncilPersona } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
-import { AiExaminer } from './AiExaminer';
+import { LiveAiExaminer } from './LiveAiExaminer';
 
 interface ArenaChamberProps {
   session: DebateSession;
@@ -24,7 +24,8 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   const [inputText, setInputText] = useState('');
   const [modeUsed, setModeUsed] = useState<'voice' | 'text'>('text');
   const [turnStartTime, setTurnStartTime] = useState<number>(Date.now());
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(45);
+  const [firstInputTime, setFirstInputTime] = useState<number | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(60);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
   const [isCamActive, setIsCamActive] = useState<boolean>(false);
 
@@ -46,7 +47,6 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     voiceOptions,
   } = useSpeechSynthesis();
 
-  // Set default voice matching persona gender/style
   useEffect(() => {
     if (persona === 'academic_reviewer') {
       setCurrentVoice('vi-VN-HoaiMyNeural');
@@ -58,8 +58,9 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   // Reset state when turn changes
   useEffect(() => {
     setTurnStartTime(Date.now());
+    setFirstInputTime(null);
     setInputText('');
-    setCountdownSeconds(45);
+    setCountdownSeconds(60);
     setIsTimerPaused(false);
     resetTranscript();
   }, [session.current_turn, resetTranscript]);
@@ -67,6 +68,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   // Sync speech transcript into input box
   useEffect(() => {
     if (transcript) {
+      if (!firstInputTime) setFirstInputTime(Date.now());
       setInputText(transcript);
       setModeUsed('voice');
     }
@@ -81,22 +83,12 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     return () => clearInterval(interval);
   }, [isTimerPaused, isCouncilThinking]);
 
-  // Speak question when turn changes
-  useEffect(() => {
-    const currentTurn = session.turns.find((t) => t.turn_number === session.current_turn);
-    if (currentTurn && voiceEnabled) {
-      speak(currentTurn.ai_question);
-    }
-    return () => {
-      stopSpeaking();
-    };
-  }, [session.current_turn, session.turns, voiceEnabled, speak, stopSpeaking]);
-
   const handleMicToggle = () => {
     if (isListening) {
       stopListening();
     } else {
       stopSpeaking();
+      if (!firstInputTime) setFirstInputTime(Date.now());
       startListening();
       setModeUsed('voice');
     }
@@ -110,16 +102,15 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       stopListening();
     }
 
-    const duration = Math.round((Date.now() - turnStartTime) / 1000);
+    const duration = Math.max(1, Math.round((Date.now() - turnStartTime) / 1000));
     await onSubmitTurn(finalContent, modeUsed, duration);
   };
 
   const currentTurnObj = session.turns.find((t) => t.turn_number === session.current_turn);
-  const aiQuestion =
-    currentTurnObj?.ai_question ||
-    '“Bạn đã nêu được 2 thành phần mô hình, nhưng chưa giải thích được cơ chế dung hợp đặc trưng (Feature Fusion). Cụ thể ma trận kề trong GNN được khởi tạo ra sao khi đồ thị có hàng triệu node? Bạn đang né tránh phần đánh giá độ phức tạp tính toán!”';
+  const prevTurnObj = session.turns.find((t) => t.turn_number === session.current_turn - 1);
 
-  // Dynamic persona info for the chamber
+  const aiQuestion = currentTurnObj?.ai_question || '';
+
   const personaSpeakerName =
     currentTurnObj?.council_speaker ||
     (persona === 'feynman'
@@ -135,18 +126,23 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       ? 'Chủ tịch Hội đồng Stress-Test'
       : 'Hội đồng Viện AI Quốc gia';
 
-  // CoT Thought Process from current turn or previous turn critique
-  const prevTurnObj = session.turns.find((t) => t.turn_number === session.current_turn - 1);
-  const cotReasoning = prevTurnObj?.ai_thought_process || {
-    step1_fact_check:
-      'Khái niệm BERT + GNN khớp với luận văn. Tuy nhiên cơ chế Attention-based Fusion tại chương thực nghiệm chưa được thí sinh trình bày định lượng.',
-    step2_logic_flaws: [
-      'Né tránh con số chi phí tính toán GPU',
-      'Chưa giải thích kịch bản tràn bộ nhớ VRAM khi mở rộng đồ thị',
-    ],
-    step3_rebuttal_strategy:
-      'Hội đồng chuyển trọng tâm kiểm tra kỹ thuật lấy mẫu Neighbor Sampling (GraphSAGE) hoặc Cluster-GCN trong môi trường phân tán.',
-  };
+  // Lấy CoT thực tế từ lượt hiện tại hoặc lượt trước (từ Gemini AI)
+  const cotReasoning = currentTurnObj?.ai_thought_process || prevTurnObj?.ai_thought_process;
+  const latestAccuracy = prevTurnObj?.ground_truth_accuracy ?? currentTurnObj?.ground_truth_accuracy;
+  const latestFlaws =
+    (prevTurnObj?.logic_flaws && prevTurnObj.logic_flaws.length > 0
+      ? prevTurnObj.logic_flaws
+      : currentTurnObj?.logic_flaws) || [];
+
+  // Tính toán thông số phản xạ & tốc độ phát biểu thật theo thời gian thực
+  const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
+  const activeSeconds = firstInputTime
+    ? Math.max(1, (Date.now() - firstInputTime) / 1000)
+    : 0;
+  const realWpm = wordCount > 0 && activeSeconds > 0 ? Math.round((wordCount / activeSeconds) * 60) : 0;
+  const reactionDelaySec = firstInputTime
+    ? ((firstInputTime - turnStartTime) / 1000).toFixed(2)
+    : null;
 
   const formatTimer = (sec: number) => {
     const m = Math.floor(sec / 60)
@@ -170,17 +166,18 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                 Chủ đề: {session.title}
               </h1>
               <p className="text-xs text-on-surface-variant font-body">
-                Hội đồng đang kiểm chứng tính hợp lý của phương pháp luận khoa học
+                {session.document_name
+                  ? `Đối soát RAG trên tài liệu: ${session.document_name}`
+                  : 'Phiên chất vấn trực tiếp với Hội đồng Gemini AI'}
               </p>
             </div>
           </div>
 
           {/* Timer & Session Actions */}
           <div className="flex items-center gap-3 self-end md:self-center">
-            {/* Animated Timer Badge */}
             <div className="flex items-center gap-2 bg-surface-container-low border border-primary/20 px-4 py-1.5 rounded-full text-xs font-label text-on-surface shadow-xs anim-timer-tick">
               <span className="material-symbols-outlined text-[17px] text-primary">timer</span>
-              <span className="text-on-surface-variant">Thời gian phản xạ:</span>
+              <span className="text-on-surface-variant">Thời gian lượt:</span>
               <span className="font-bold text-primary font-mono text-sm tracking-wide">
                 {formatTimer(countdownSeconds)}
               </span>
@@ -203,20 +200,20 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* ================= CỘT 1: HUMANOID AI EXAMINER LIVE FEED ================= */}
           <section className="lg:col-span-4 flex flex-col gap-4">
-            {/* Real-time AI Examiner Video Stream */}
-            <AiExaminer
+            <LiveAiExaminer
               speakerName={personaSpeakerName}
               councilRole={personaCouncilRole}
               isSpeaking={isSpeaking}
               isThinking={isCouncilThinking}
               audioVolume={audioVolume}
+              triggerQuestion={aiQuestion}
+              textToSpeak={aiQuestion}
               voiceEnabled={voiceEnabled}
               onToggleVoice={onToggleVoice}
               onStopVoice={stopSpeaking}
               currentVoice={currentVoice}
               onChangeVoice={(v) => {
                 setCurrentVoice(v);
-                speak(aiQuestion, v);
               }}
               voiceOptions={voiceOptions}
             />
@@ -228,13 +225,10 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   <div className="flex items-center gap-1.5 font-bold text-secondary">
                     <span className="material-symbols-outlined text-base">closed_caption</span>
                     <span className="tracking-wide uppercase text-[11px]">
-                      Phụ đề chất vấn trực tiếp (Live Captions)
+                      Câu hỏi chất vấn từ Hội đồng (Lượt {session.current_turn})
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      Sync: 12ms
-                    </span>
                     <button
                       onClick={() => speak(aiQuestion)}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-fixed/30 hover:bg-primary-fixed/50 text-primary text-[11px] font-label font-bold transition-all border border-primary/20 cursor-pointer"
@@ -246,6 +240,13 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   </div>
                 </div>
 
+                {prevTurnObj?.critique_comment && (
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-body text-amber-900">
+                    <strong className="font-label">Nhận xét lượt {prevTurnObj.turn_number}: </strong>
+                    {prevTurnObj.critique_comment}
+                  </div>
+                )}
+
                 <div className="relative bg-surface-container-low/80 border-l-4 border-primary rounded-r-2xl rounded-bl-2xl p-4 shadow-xs border-y border-r border-surface-container-high/50">
                   <blockquote className="font-headline text-on-surface text-base italic leading-relaxed">
                     {aiQuestion}
@@ -253,12 +254,11 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                 </div>
               </div>
 
-              {/* Bottom Examiner Status */}
               <div className="mt-3 pt-2.5 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>
-                    AI Vision Tracking: <strong>Đang quan sát phong thái phản biện</strong>
+                    Giám khảo: <strong>{personaSpeakerName}</strong>
                   </span>
                 </div>
                 <button
@@ -268,7 +268,6 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                       ? 'bg-secondary-fixed/50 text-secondary border-secondary/40'
                       : 'bg-surface-container-low hover:bg-surface-container text-on-surface-variant border-surface-container-high'
                   }`}
-                  title="Bật/Tắt camera sinh viên đối ứng"
                 >
                   <span className="material-symbols-outlined text-[14px]">videocam</span>
                   <span>{isCamActive ? 'Cam Bật' : 'Cam SV'}</span>
@@ -277,11 +276,10 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
             </div>
           </section>
 
-          {/* ================= CỘT 2: TIẾN TRÌNH PHÂN TÍCH AI CoT 3 BƯỚC ================= */}
+          {/* ================= CỘT 2: TIẾN TRÌNH PHÂN TÍCH AI CoT 3 BƯỚC THẬT ================= */}
           <section className="lg:col-span-4 flex flex-col">
             <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
               <div>
-                {/* Column Header with AI CoT Active Pill */}
                 <div className="flex items-center justify-between pb-4 border-b border-surface-container-high/60">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -292,17 +290,17 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                         Tiến trình Phân tích AI
                       </h2>
                       <span className="font-label text-[10px] text-on-surface-variant font-medium">
-                        Chain-of-Thought Suy luận sâu ngầm
+                        Chain-of-Thought thực tế từ Gemini AI
                       </span>
                     </div>
                   </div>
                   <span className="font-label text-[11px] font-bold text-primary bg-primary-fixed/40 px-2.5 py-1 rounded-full border border-primary-fixed-dim/50 flex items-center gap-1.5 anim-pulse-ring">
                     <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
-                    <span>CoT Thời gian thực</span>
+                    <span>{isCouncilThinking ? 'Đang suy luận...' : 'CoT Thực tế'}</span>
                   </span>
                 </div>
 
-                {/* 3-Step Reasoning Pipeline */}
+                {/* 3-Step Real Reasoning Pipeline */}
                 <div className="mt-4 flex flex-col gap-3.5">
                   {/* BƯỚC 1: FACT CHECK */}
                   <div className="p-4 rounded-xl border border-primary/20 bg-primary-fixed/15 hover:border-primary/40 transition-all relative overflow-hidden">
@@ -311,45 +309,43 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                         <span className="w-5 h-5 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-[10px] font-bold shadow-2xs">
                           1
                         </span>
-                        Kiểm chứng dữ liệu gốc
+                        Đối chiếu Ground Truth
                       </span>
                       <span className="font-label text-[11px] text-primary font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest shadow-2xs border border-primary/15">
-                        Khớp 82%
+                        {typeof latestAccuracy === 'number' && latestAccuracy > 0
+                          ? `Độ chính xác: ${latestAccuracy}%`
+                          : 'Lượt mở màn'}
                       </span>
                     </div>
                     <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-                      {cotReasoning.step1_fact_check ||
-                        'Khái niệm BERT + GNN khớp với luận văn. Thí sinh cần giải trình rõ cơ chế Attention-based Fusion.'}
+                      {cotReasoning?.step1_fact_check ||
+                        `Đang đối chiếu đề tài "${session.title}" với cơ sở tri thức để kiểm chứng câu trả lời của thí sinh.`}
                     </p>
                   </div>
 
                   {/* BƯỚC 2: LOGIC CHECK */}
-                  <div className="p-4 rounded-xl border border-secondary/30 bg-secondary-fixed/20 hover:border-secondary/50 transition-all relative ring-1 ring-secondary/20 anim-timer-tick">
+                  <div className="p-4 rounded-xl border border-secondary/30 bg-secondary-fixed/20 hover:border-secondary/50 transition-all relative ring-1 ring-secondary/20">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-label text-xs font-bold text-secondary flex items-center gap-2">
                         <span className="w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center text-[10px] font-bold shadow-2xs">
                           2
                         </span>
-                        Bắt bài ngụy biện / Lỗ hổng
+                        Phát hiện lỗ hổng / Trọng tâm
                       </span>
-                      <span className="font-label text-[11px] text-error font-bold px-2 py-0.5 rounded-full bg-error-container/80 shadow-2xs border border-error/20 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
-                        Né tránh câu hỏi
+                      <span className="font-label text-[11px] text-secondary font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest shadow-2xs border border-secondary/20">
+                        {latestFlaws.length > 0
+                          ? `${latestFlaws.length} điểm lưu ý`
+                          : 'Phân tích logic'}
                       </span>
                     </div>
                     <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-                      {Array.isArray(cotReasoning.step2_logic_flaws)
-                        ? cotReasoning.step2_logic_flaws.join('; ')
-                        : cotReasoning.step2_logic_flaws ||
-                          'Thí sinh chưa nêu giải pháp cho vấn đề tràn VRAM khi mở rộng kích thước đồ thị (Độ phức tạp O(V+E) so với O(V²)).'}
+                      {Array.isArray(cotReasoning?.step2_logic_flaws) &&
+                      cotReasoning.step2_logic_flaws.length > 0
+                        ? cotReasoning.step2_logic_flaws.join(' • ')
+                        : latestFlaws.length > 0
+                        ? latestFlaws.join(' • ')
+                        : 'Chờ thí sinh gửi phản hồi để phân tích các lỗ hổng lập luận hoặc ngụy biện.'}
                     </p>
-                    <div className="mt-2.5 pt-2 border-t border-secondary/20 flex items-center justify-between text-[11px] font-label text-secondary">
-                      <span className="flex items-center gap-1 font-semibold">
-                        <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
-                        Đang xử lý phân tích logic phản hồi
-                      </span>
-                      <span className="text-[10px] text-on-surface-variant">Trọng số: Cao</span>
-                    </div>
                   </div>
 
                   {/* BƯỚC 3: CHIẾN THUẬT VẤN ĐÁP SOCRATIC */}
@@ -362,26 +358,25 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                         Chiến thuật vấn đáp Socratic
                       </span>
                       <span className="font-label text-[11px] text-tertiary font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest shadow-2xs border border-tertiary/15">
-                        Mục tiêu xoáy sâu
+                        Lượt {session.current_turn}/{session.max_turns}
                       </span>
                     </div>
                     <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-                      {cotReasoning.step3_rebuttal_strategy ||
-                        'Hội đồng chuyển trọng tâm kiểm tra kỹ thuật lấy mẫu GraphSAGE hoặc Cluster-GCN trong môi trường phân tán.'}
+                      {cotReasoning?.step3_rebuttal_strategy ||
+                        `Tập trung kiểm tra chiều sâu học thuật và tính khả thi thực nghiệm của đề tài "${session.title}".`}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Footer Note */}
               <div className="mt-4 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
                 <span className="flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[15px] text-primary">hub</span>
-                  Mô hình suy luận: Gemini 3.8 CoT
+                  Phiên: #{session.id.slice(0, 8).toUpperCase()}
                 </span>
                 <span className="text-primary font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Đã đồng bộ thời gian thực
+                  Dữ liệu CoT thời gian thực
                 </span>
               </div>
             </div>
@@ -391,11 +386,16 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
           <section className="lg:col-span-4 flex flex-col">
             <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
               <div>
-                {/* Header with Live Recording Status */}
                 <div className="flex items-center justify-between pb-3.5 border-b border-surface-container-high/60">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                    <h3 className="font-headline font-semibold text-lg text-on-surface">Phát biểu của bạn</h3>
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        isListening ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'
+                      }`}
+                    ></span>
+                    <h3 className="font-headline font-semibold text-lg text-on-surface">
+                      Phát biểu của bạn
+                    </h3>
                   </div>
                   <button
                     onClick={handleMicToggle}
@@ -410,7 +410,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   </button>
                 </div>
 
-                {/* Dynamic Animated Soundwave Waveform */}
+                {/* Dynamic Soundwave */}
                 <div className="my-3.5 p-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/60 flex items-center justify-center gap-1.5 h-14 relative overflow-hidden">
                   <div className="w-1.5 bg-primary/40 rounded-full wave-bar"></div>
                   <div className="w-1.5 bg-primary rounded-full wave-bar"></div>
@@ -422,23 +422,32 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   <div className="w-1.5 bg-primary/50 rounded-full wave-bar"></div>
                 </div>
 
-                {/* Real-time Latency & Speaking Pace Telemetry */}
+                {/* Real-time Telemetry */}
                 <div className="mb-3 p-2.5 rounded-xl bg-surface-container-low/50 border border-surface-container-high/50 grid grid-cols-2 gap-2 text-xs font-label">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px] text-secondary">speed</span>
+                    <span className="material-symbols-outlined text-[16px] text-secondary">
+                      speed
+                    </span>
                     <div>
-                      <span className="text-[10px] text-on-surface-variant block">Nhịp độ nói:</span>
+                      <span className="text-[10px] text-on-surface-variant block">
+                        Số từ & tốc độ:
+                      </span>
                       <span className="font-bold text-on-surface">
-                        128 từ/phút <span className="text-emerald-700 font-normal text-[10px]">(Ổn định)</span>
+                        {wordCount} từ{' '}
+                        <span className="text-emerald-700 font-normal text-[10px]">
+                          ({realWpm > 0 ? `${realWpm} từ/phút` : 'Đang chờ'})
+                        </span>
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 border-l border-surface-container-high pl-2">
                     <span className="material-symbols-outlined text-[16px] text-primary">bolt</span>
                     <div>
-                      <span className="text-[10px] text-on-surface-variant block">Độ trễ phản xạ:</span>
+                      <span className="text-[10px] text-on-surface-variant block">
+                        Phản xạ lượt này:
+                      </span>
                       <span className="font-bold text-on-surface">
-                        0.42s <span className="text-primary font-normal text-[10px]">(Xuất sắc)</span>
+                        {reactionDelaySec ? `${reactionDelaySec}s` : 'Chưa nhập'}
                       </span>
                     </div>
                   </div>
@@ -448,9 +457,11 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs font-label">
                     <label className="font-semibold text-on-surface" htmlFor="responseInput">
-                      Nội dung phản biện trực tiếp (Giọng nói hoặc Gõ tay)
+                      Nội dung trả lời (Giọng nói hoặc Gõ văn bản)
                     </label>
-                    <span className="text-[11px] text-on-surface-variant font-medium">Tự động nhận dạng</span>
+                    <span className="text-[11px] text-on-surface-variant font-medium">
+                      Chế độ: {modeUsed === 'voice' ? 'Giọng nói (STT)' : 'Văn bản'}
+                    </span>
                   </div>
                   <div className="relative rounded-xl border border-surface-container-high bg-surface-container-lowest p-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary-fixed/50 transition-all shadow-xs">
                     <textarea
@@ -458,11 +469,12 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                       rows={4}
                       value={inputText}
                       onChange={(e) => {
+                        if (!firstInputTime) setFirstInputTime(Date.now());
                         setInputText(e.target.value);
                         setModeUsed('text');
                       }}
                       className="w-full bg-transparent text-on-surface text-sm focus:outline-none resize-none leading-relaxed border-none p-0 font-body placeholder:text-on-surface-variant/60"
-                      placeholder="Nói vào micro hoặc nhập câu trả lời của bạn tại đây... (Ví dụ: Thưa hội đồng, đối với đồ thị quy mô lớn, nhóm chúng em áp dụng Neighbor Sampling...)"
+                      placeholder="Nói vào micro hoặc nhập câu trả lời thực tế của bạn cho câu hỏi trên..."
                     />
                   </div>
                 </div>
@@ -472,14 +484,14 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   <div className="flex items-center gap-1.5 mb-1 text-primary">
                     <span className="material-symbols-outlined text-[16px]">tips_and_updates</span>
                     <span className="font-label text-[11px] font-bold uppercase tracking-wider">
-                      Mẹo trả lời theo cấu trúc PREP
+                      Cấu trúc trả lời khuyến nghị (PREP)
                     </span>
                   </div>
                   <p className="font-body text-xs text-on-surface-variant leading-relaxed">
                     <strong className="text-on-surface">P</strong>oint (Luận điểm) →{' '}
-                    <strong className="text-on-surface">R</strong>eason (Lý do kỹ thuật) →{' '}
-                    <strong className="text-on-surface">E</strong>xample (Dẫn chứng thực nghiệm) →{' '}
-                    <strong className="text-on-surface">P</strong>oint (Chốt kết luận).
+                    <strong className="text-on-surface">R</strong>eason (Cơ sở lý thuyết) →{' '}
+                    <strong className="text-on-surface">E</strong>xample (Số liệu thực nghiệm) →{' '}
+                    <strong className="text-on-surface">P</strong>oint (Kết luận).
                   </p>
                 </div>
               </div>
@@ -495,7 +507,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                   {isCouncilThinking ? (
                     <>
                       <span className="material-symbols-outlined animate-spin text-lg">sync</span>
-                      <span>Hội đồng đang bóc tách luận điểm...</span>
+                      <span>Gemini AI đang chấm & sinh câu hỏi tiếp...</span>
                     </>
                   ) : (
                     <>

@@ -1,10 +1,10 @@
 import React from 'react';
-import { AiExaminer, type AiExaminerProps } from './AiExaminer';
+import { LiveAiExaminer, type LiveAiExaminerProps } from './LiveAiExaminer';
 
-export type SpeakingAvatarProps = AiExaminerProps;
+export type SpeakingAvatarProps = LiveAiExaminerProps;
 
 export const SpeakingAvatar: React.FC<SpeakingAvatarProps> = (props) => {
-  return <AiExaminer {...props} />;
+  return <LiveAiExaminer {...props} />;
 };
 
 export default SpeakingAvatar;

@@ -2,27 +2,71 @@ import React from 'react';
 import type { Scorecard, CouncilPersona } from '../types';
 
 interface ScorecardViewProps {
-  scorecard: Scorecard;
+  scorecard: Scorecard | null;
   persona: CouncilPersona;
   topicTitle: string;
   onRestart: () => void;
+  onGoToArchive?: () => void;
 }
+
+const getAcademicGrade = (score: number): { rank: string; passed: boolean; label: string } => {
+  if (score >= 90) return { rank: 'Hạng A+ • Xuất sắc', passed: true, label: 'ĐẠT YÊU CẦU BẢO VỆ XUẤT SẮC' };
+  if (score >= 85) return { rank: 'Hạng A • Giỏi', passed: true, label: 'ĐẠT YÊU CẦU BẢO VỆ' };
+  if (score >= 80) return { rank: 'Hạng B+ • Khá Giỏi', passed: true, label: 'ĐẠT YÊU CẦU BẢO VỆ' };
+  if (score >= 70) return { rank: 'Hạng B • Khá', passed: true, label: 'ĐẠT YÊU CẦU (CẦN BỔ SUNG)' };
+  if (score >= 55) return { rank: 'Hạng C • Trung bình', passed: true, label: 'THÔNG QUA CÓ ĐIỀU KIỆN' };
+  return { rank: 'Hạng D • Chưa đạt', passed: false, label: 'CẦN BẢO VỆ LẠI' };
+};
 
 export const ScorecardView: React.FC<ScorecardViewProps> = ({
   scorecard,
   topicTitle,
   onRestart,
+  onGoToArchive,
 }) => {
   const handleExportPDF = () => {
     window.print();
   };
 
+  if (!scorecard) {
+    return (
+      <main className="pt-28 pb-16 relative z-10 w-full max-w-3xl mx-auto px-4 sm:px-6 text-center flex flex-col items-center justify-center gap-4 flex-1">
+        <div className="w-16 h-16 rounded-2xl bg-primary-fixed/40 text-primary flex items-center justify-center">
+          <span className="material-symbols-outlined text-3xl">grading</span>
+        </div>
+        <h2 className="font-headline text-2xl sm:text-3xl font-bold text-on-surface">
+          Chưa có Bảng điểm nào được chọn
+        </h2>
+        <p className="font-body text-sm text-on-surface-variant max-w-md">
+          Hãy hoàn thành một phiên chất vấn trực tiếp với Hội đồng AI để hệ thống chấm điểm thực tế, hoặc chọn một phiên đã diễn ra trong mục Lịch sử & Hồ sơ.
+        </p>
+        <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={onRestart}
+            className="px-5 py-2.5 rounded-xl bg-primary text-white font-label text-xs sm:text-sm font-bold hover:bg-primary-container transition-all cursor-pointer border-none"
+          >
+            Bắt đầu phiên chất vấn mới
+          </button>
+          {onGoToArchive && (
+            <button
+              onClick={onGoToArchive}
+              className="px-5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-label text-xs sm:text-sm font-bold hover:bg-surface-container-low transition-all cursor-pointer"
+            >
+              Xem lịch sử các phiên
+            </button>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  const gradeInfo = getAcademicGrade(scorecard.overall_score);
+
   return (
     <main className="pt-24 pb-16 relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-grow space-y-8">
-      {/* 1. HEADER KẾT QUẢ TỔNG THỂ */}
+      {/* 1. HEADER KẾT QUẢ TỔNG THỂ THẬT */}
       <section className="bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-high/80 p-6 sm:p-8 shadow-sm hover-lift">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          {/* Điểm tổng kết lớn & Nhận định chung */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <div className="flex-shrink-0 flex items-center justify-center w-28 h-28 rounded-2xl bg-gradient-to-br from-primary-fixed/40 via-surface-container-low to-primary/10 border border-primary/20 shadow-xs">
               <div className="text-center">
@@ -36,29 +80,39 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             </div>
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-label font-bold bg-primary-fixed text-on-primary-fixed-variant">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  <span className="material-symbols-outlined text-[15px]">verified</span>
-                  ĐẠT YÊU CẦU BẢO VỆ
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-label font-bold ${
+                    gradeInfo.passed
+                      ? 'bg-primary-fixed text-on-primary-fixed-variant'
+                      : 'bg-error-container text-on-error-container'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      gradeInfo.passed ? 'bg-primary' : 'bg-error'
+                    }`}
+                  ></span>
+                  <span className="material-symbols-outlined text-[15px]">
+                    {gradeInfo.passed ? 'verified' : 'warning'}
+                  </span>
+                  {gradeInfo.label}
                 </span>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-label font-semibold bg-surface-container-high text-on-surface-variant border border-surface-container-highest">
-                  Hạng A- • Chỉnh sửa thực nghiệm
+                  {gradeInfo.rank}
                 </span>
                 <span className="text-xs font-label text-on-surface-variant/80">
-                  Khóa luận Thạc sĩ CS-2025
+                  Mã phiên: #{scorecard.session_id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
-              <h1 className="font-headline text-3xl sm:text-4xl font-semibold text-on-surface tracking-tight">
-                Báo Cáo Đánh Giá Hậu Bảo Vệ
+              <h1 className="font-headline text-2xl sm:text-3xl font-semibold text-on-surface tracking-tight">
+                Đề tài: {topicTitle}
               </h1>
               <p className="font-body text-sm sm:text-base text-on-surface-variant max-w-2xl leading-relaxed">
-                {scorecard.overall_verdict ||
-                  `Ứng viên hoàn thành xuất sắc các lượt phản biện cho đề tài "${topicTitle}". Đề tài đạt chuẩn phương pháp luận quốc tế; cần cụ thể hóa bảng định lượng tiêu hao tài nguyên phần GPU khi triển khai thực tế.`}
+                {scorecard.overall_verdict}
               </p>
             </div>
           </div>
 
-          {/* Nút hành động chính */}
           <div className="flex items-center gap-3 self-stretch sm:self-auto flex-shrink-0">
             <button
               onClick={handleExportPDF}
@@ -77,13 +131,13 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               <span className="material-symbols-outlined text-[19px] text-primary group-hover:rotate-180 transition-transform duration-500">
                 replay
               </span>
-              <span>Luyện Tập Lại</span>
+              <span>Phiên Mới</span>
             </button>
           </div>
         </div>
       </section>
 
-      {/* 2. 4 TRỤC ĐÁNH GIÁ HỘI ĐỒNG (RUBRICS TIÊU CHUẨN) */}
+      {/* 2. 4 TRỤC ĐÁNH GIÁ HỘI ĐỒNG (DỮ LIỆU THẬT TỪ GEMINI AI) */}
       <section className="bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-high/80 p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-surface-container-high/60 gap-2">
           <div>
@@ -94,12 +148,12 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               </h2>
             </div>
             <p className="font-body text-xs sm:text-sm text-on-surface-variant">
-              Phân tích đa chiều theo chuẩn mực học thuật quốc tế Scopus/ISI
+              Chấm điểm định lượng trực tiếp từ lịch sử trả lời của bạn trong phiên
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-label text-xs font-semibold text-on-surface-variant bg-surface-container-low border border-surface-container-high/80 px-3 py-1.5 rounded-full">
-              Tổng trọng số: 100% • 3 Vòng Chất Vấn
+              Tổng số câu đã phân tích: {scorecard.optimal_answers?.length || 0} lượt
             </span>
           </div>
         </div>
@@ -122,12 +176,9 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             <div className="w-full h-2 rounded-full bg-surface-container-high overflow-hidden mb-2.5">
               <div
                 className="h-full bg-primary rounded-full progress-fill"
-                style={{ width: `${scorecard.logic_accuracy_score}%` }}
+                style={{ width: `${Math.min(100, scorecard.logic_accuracy_score)}%` }}
               ></div>
             </div>
-            <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-              Nắm vững cơ sở toán học, lập luận giả thuyết mạch lạc và không xảy ra sai lệch thuật ngữ toán học cốt lõi.
-            </p>
           </div>
 
           {/* Trục 2: Lập luận */}
@@ -147,12 +198,9 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             <div className="w-full h-2 rounded-full bg-surface-container-high overflow-hidden mb-2.5">
               <div
                 className="h-full bg-secondary rounded-full progress-fill"
-                style={{ width: `${scorecard.argumentation_score}%` }}
+                style={{ width: `${Math.min(100, scorecard.argumentation_score)}%` }}
               ></div>
             </div>
-            <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-              Cấu trúc phản hồi rõ ràng, tuy nhiên còn lúng túng khi bị dồn dập truy vấn con số định lượng chi phí tài nguyên.
-            </p>
           </div>
 
           {/* Trục 3: Bản lĩnh phản biện */}
@@ -172,12 +220,9 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             <div className="w-full h-2 rounded-full bg-surface-container-high overflow-hidden mb-2.5">
               <div
                 className="h-full bg-tertiary rounded-full progress-fill"
-                style={{ width: `${scorecard.composure_score}%` }}
+                style={{ width: `${Math.min(100, scorecard.composure_score)}%` }}
               ></div>
             </div>
-            <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-              Giữ được sự bình tĩnh khi giám khảo ngắt lời phản bác, tốc độ phản hồi có trật tự và ngôn phong chuẩn mực.
-            </p>
           </div>
 
           {/* Trục 4: Trình bày */}
@@ -197,19 +242,15 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             <div className="w-full h-2 rounded-full bg-surface-container-high overflow-hidden mb-2.5">
               <div
                 className="h-full bg-primary-container rounded-full progress-fill"
-                style={{ width: `${scorecard.clarity_score}%` }}
+                style={{ width: `${Math.min(100, scorecard.clarity_score)}%` }}
               ></div>
             </div>
-            <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-              Diễn đạt súc tích, bố cục luận điểm minh họa khoa học và thuật ngữ bám sát quy chuẩn hội nghị quốc tế.
-            </p>
           </div>
         </div>
       </section>
 
-      {/* 3. KHỐI PHÂN TÍCH SONG SONG (ĐIỂM MẠNH & ĐIỂM CẦN KHẮC PHỤC) */}
+      {/* 3. KHỐI PHÂN TÍCH SONG SONG (ĐIỂM MẠNH & ĐIỂM CẦN KHẮC PHỤC THẬT) */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Cột Điểm Mạnh Nổi Bật */}
         <div className="bg-surface-container-lowest/90 backdrop-blur-md border border-primary/25 rounded-2xl p-6 sm:p-7 shadow-sm hover-lift">
           <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-surface-container-high/60">
             <div className="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center font-bold">
@@ -218,12 +259,12 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             <div>
               <h3 className="font-headline text-xl font-bold text-on-surface">Điểm Mạnh Nổi Bật</h3>
               <span className="font-label text-[11px] text-primary font-semibold">
-                Ưu thế cần tiếp tục phát huy
+                Đánh giá thực tế từ các câu trả lời của bạn
               </span>
             </div>
           </div>
           <ul className="space-y-3.5 font-body text-sm text-on-surface-variant">
-            {scorecard.strengths?.length > 0 ? (
+            {scorecard.strengths && scorecard.strengths.length > 0 ? (
               scorecard.strengths.map((str, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0"></span>
@@ -231,45 +272,27 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
                 </li>
               ))
             ) : (
-              <>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Cơ sở toán học vững vàng:</strong> Chứng minh chặt chẽ cơ chế hội tụ của mô hình lan truyền (Diffusion Probabilistic Models) tại không gian đồ thị đa tầng.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Chứng minh ma trận thưa thuyết phục:</strong> Giải trình thành công thuật toán nén CSR giúp bảo toàn đặc trưng mà không tổn thất thông tin phân loại.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Phản xạ định lý Bayes nhanh nhạy:</strong> Ứng biến xuất sắc trước câu hỏi mở rộng về phân phối tiền nghiệm không suy biến của Hội đồng.
-                  </span>
-                </li>
-              </>
+              <li className="text-xs italic">Chưa ghi nhận điểm mạnh nổi bật trong phiên này.</li>
             )}
           </ul>
         </div>
 
-        {/* Cột Điểm Cần Khắc Phục & Lưu Ý */}
         <div className="bg-surface-container-lowest/90 backdrop-blur-md border border-secondary/30 rounded-2xl p-6 sm:p-7 shadow-sm hover-lift">
           <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-surface-container-high/60">
             <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed-variant flex items-center justify-center font-bold">
               <span className="material-symbols-outlined text-[20px]">warning</span>
             </div>
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">Điểm Cần Khắc Phục & Lưu Ý</h3>
+              <h3 className="font-headline text-xl font-bold text-on-surface">
+                Điểm Cần Khắc Phục & Lỗi Ngụy Biện
+              </h3>
               <span className="font-label text-[11px] text-secondary font-semibold">
-                Khuyến nghị trọng tâm trước giờ G
+                Khuyến nghị cải thiện từ Hội đồng AI
               </span>
             </div>
           </div>
           <ul className="space-y-3.5 font-body text-sm text-on-surface-variant">
-            {scorecard.weaknesses?.length > 0 ? (
+            {scorecard.weaknesses && scorecard.weaknesses.length > 0 ? (
               scorecard.weaknesses.map((weak, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></span>
@@ -277,43 +300,33 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
                 </li>
               ))
             ) : (
-              <>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Né tránh con số thực tế:</strong> Còn lúng túng khi giám khảo truy vấn dung lượng VRAM GPU tiêu hao thực tế với dữ liệu quy mô 10 triệu node.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Thiếu bảng so sánh phần cứng:</strong> Chưa trình bày bảng đối sánh chi phí tính toán (FLOPs/chi phí GPU) so với phương pháp baseline phổ biến.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></span>
-                  <span>
-                    <strong>Chiến thuật phản hồi:</strong> Cần chủ động thừa nhận giới hạn tài nguyên trước khi trình bày thuật toán thưa để tránh bị hội đồng dồn ép.
-                  </span>
-                </li>
-              </>
+              <li className="text-xs italic">Không phát hiện điểm yếu nghiêm trọng.</li>
             )}
+            {scorecard.fallacies_summary &&
+              scorecard.fallacies_summary.map((fal, idx) => (
+                <li key={`fal-${idx}`} className="flex items-start gap-3 text-error">
+                  <span className="w-2 h-2 rounded-full bg-error mt-1.5 flex-shrink-0"></span>
+                  <span>
+                    <strong>Lỗi lập luận:</strong> {fal}
+                  </span>
+                </li>
+              ))}
           </ul>
         </div>
       </section>
 
-      {/* 4. CÂU TRẢ LỜI KIỂU MẪU HỌC THUẬT (CHUẨN PREP & TRÍCH DẪN) */}
+      {/* 4. CÂU TRẢ LỜI KIỂU MẪU HỌC THUẬT CHO TỪNG LƯỢT THẬT */}
       <section className="bg-surface-container-lowest/90 backdrop-blur-md border border-surface-container-high/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-surface-container-high/60 gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="material-symbols-outlined text-primary text-[20px]">psychology</span>
               <h2 className="font-headline text-2xl font-semibold text-on-surface">
-                Câu Trả Lời Kiểu Mẫu Học Thuật
+                Đối Sánh Câu Trả Lời Thực Tế & Gợi Ý Chuẩn PREP
               </h2>
             </div>
             <p className="font-body text-xs sm:text-sm text-on-surface-variant">
-              Đối sánh trực quan câu hỏi then chốt của Hội đồng và giải pháp trả lời chuẩn mực PREP để ôn luyện
+              Phân tích chi tiết từng câu hỏi đã diễn ra trong phiên bảo vệ của bạn
             </p>
           </div>
           <span className="font-label text-xs font-semibold text-primary bg-primary-fixed/50 border border-primary/20 px-3.5 py-1.5 rounded-xl self-start sm:self-auto">
@@ -322,113 +335,63 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
         </div>
 
         <div className="space-y-6">
-          {/* Turn 1 */}
-          <div className="border border-surface-container-high/80 rounded-2xl p-5 sm:p-6 bg-surface-container-low/40 hover-lift space-y-4">
-            {/* Question Header */}
-            <div className="flex items-start gap-3.5">
-              <span className="font-label text-xs font-bold px-2.5 py-1 rounded-md bg-surface-container-high text-on-surface mt-0.5">
-                Q1
-              </span>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-label text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                    Hội Đồng Phản Biện • Vòng 1
+          {scorecard.optimal_answers && scorecard.optimal_answers.length > 0 ? (
+            scorecard.optimal_answers.map((item, idx) => (
+              <div
+                key={idx}
+                className="border border-surface-container-high/80 rounded-2xl p-5 sm:p-6 bg-surface-container-low/40 hover-lift space-y-4"
+              >
+                <div className="flex items-start gap-3.5">
+                  <span className="font-label text-xs font-bold px-2.5 py-1 rounded-md bg-surface-container-high text-on-surface mt-0.5">
+                    Q{item.turn_number || idx + 1}
                   </span>
-                  <span className="text-xs text-primary font-semibold">GS. TS. Vũ Đình Toàn</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-label text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                        Câu hỏi Hội đồng • Lượt {item.turn_number || idx + 1}
+                      </span>
+                    </div>
+                    <p className="font-headline text-base sm:text-lg text-on-surface italic leading-snug">
+                      “{item.question}”
+                    </p>
+                  </div>
                 </div>
-                <p className="font-headline text-base sm:text-lg text-on-surface italic leading-snug">
-                  “Tại sao tác giả lại áp dụng hàm kích hoạt GELU thay vì SwiGLU khi các công bố gần đây chứng minh SwiGLU giảm thiểu hiện tượng vanishing gradient tốt hơn?”
-                </p>
-              </div>
-            </div>
 
-            {/* Comparison Box */}
-            <div className="sm:ml-9 space-y-3.5">
-              <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-surface-container-high/70 text-xs font-body text-on-surface-variant">
-                <span className="font-label font-bold text-on-surface">Thí sinh đã trả lời:</span>
-                <span className="italic">
-                  {' '}
-                  “Em chọn GELU vì PyTorch tối ưu sẵn kernel CUDA tốt hơn và qua thử nghiệm nhỏ độ hội tụ không chênh lệch nhiều.”
-                </span>
-                <span className="block mt-1 font-label text-[11px] text-secondary font-semibold">
-                  → Điểm hạn chế: Chưa cung cấp số liệu thực nghiệm định lượng cụ thể.
-                </span>
-              </div>
+                <div className="sm:ml-9 space-y-3.5">
+                  <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-surface-container-high/70 text-xs font-body text-on-surface-variant">
+                    <span className="font-label font-bold text-on-surface">
+                      Tóm tắt câu trả lời của bạn:{' '}
+                    </span>
+                    <span className="italic">{item.student_answer_summary}</span>
+                  </div>
 
-              <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-fixed/25 via-surface-container-lowest to-surface-container-low rounded-xl border border-primary/25 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-label text-xs font-bold text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[17px]">verified</span>
-                    Gợi Ý Trả Lời Tối Ưu (Chuẩn PREP • AI Benchmark)
-                  </span>
-                  <span className="font-label text-xs font-bold text-primary bg-primary-fixed px-2.5 py-0.5 rounded-full">
-                    98 / 100
-                  </span>
-                </div>
-                <p className="font-body text-sm text-on-surface leading-relaxed">
-                  “Việc giữ nguyên GELU dựa trên hai luận cứ thực nghiệm: <strong>Thứ nhất</strong>, trên tập đồ thị thưa có bậc trung bình dưới 4.8, SwiGLU làm tăng 18% tham số tính toán nhưng F1-Score cải thiện không đáng kể (&lt;0.12%). <strong>Thứ hai</strong>, duy trì kiến trúc chuẩn là điều kiện tiên quyết để cô lập biến độc lập khi kiểm định thuật toán nén đồ thị mới.”
-                </p>
-                <div className="flex items-center gap-2 pt-1 font-label text-xs text-primary font-semibold">
-                  <span className="material-symbols-outlined text-[15px]">menu_book</span>
-                  <span>Trích dẫn học thuật: Shazeer (2020), GLU Variants Improve Transformer, arXiv:2002.05202.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Turn 2 */}
-          <div className="border border-surface-container-high/80 rounded-2xl p-5 sm:p-6 bg-surface-container-low/40 hover-lift space-y-4">
-            {/* Question Header */}
-            <div className="flex items-start gap-3.5">
-              <span className="font-label text-xs font-bold px-2.5 py-1 rounded-md bg-secondary-fixed text-on-secondary-fixed-variant mt-0.5">
-                Q2
-              </span>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-label text-[11px] font-bold text-secondary uppercase tracking-wider">
-                    Hội Đồng Phản Biện • Câu Hỏi Cốt Lõi
-                  </span>
-                  <span className="text-xs text-on-surface-variant font-semibold">GS. Viện sĩ Hoàng Vĩnh</span>
-                </div>
-                <p className="font-headline text-base sm:text-lg text-on-surface italic leading-snug">
-                  “Nếu áp dụng ma trận 10 triệu node, thuật toán có gây tràn bộ nhớ VRAM GPU đơn lẻ không? Hãy nêu con số phần cứng chính xác.”
-                </p>
-              </div>
-            </div>
-
-            {/* Comparison Box */}
-            <div className="sm:ml-9 space-y-3.5">
-              <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-secondary/30 text-xs font-body text-on-surface-variant">
-                <span className="font-label font-bold text-secondary">Lỗi trả lời thực tế:</span>
-                <span className="italic">
-                  {' '}
-                  Trả lời lảng tránh: “Thuật toán chạy rất nhanh và có cụm GPU thì sẽ chạy mượt ạ.”
-                </span>
-                <span className="block mt-1 font-label text-[11px] text-error font-semibold">
-                  → Bị trừ 6 điểm vì thiếu con số định lượng bộ nhớ phần cứng.
-                </span>
-              </div>
-
-              <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-fixed/25 via-surface-container-lowest to-surface-container-low rounded-xl border border-primary/25 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-label text-xs font-bold text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[17px]">verified</span>
-                    Gợi Ý Trả Lời Tối Ưu (Định lượng chuẩn xác)
-                  </span>
-                  <span className="font-label text-xs font-bold text-primary bg-primary-fixed px-2.5 py-0.5 rounded-full">
-                    100 / 100
-                  </span>
-                </div>
-                <p className="font-body text-sm text-on-surface leading-relaxed">
-                  “Nếu tính toán toàn phần O(N²), hệ thống chắc chắn tràn VRAM trên GPU đơn. Tuy nhiên, luận án áp dụng định dạng thưa CSR kết hợp Neighborhood Sampling, đưa độ phức tạp lưu trữ về <strong>O(V + E)</strong>. Với tham số k=15, bộ nhớ thực tế chỉ tiêu tốn <strong>11.4 GB VRAM</strong>, vận hành hoàn toàn an toàn trên dòng card đồ họa 16GB phổ thông.”
-                </p>
-                <div className="flex items-center gap-2 pt-1 font-label text-xs text-primary font-semibold">
-                  <span className="material-symbols-outlined text-[15px]">tips_and_updates</span>
-                  <span>Bí quyết tranh biện: Thừa nhận giới hạn vật lý trước khi giải thích giải pháp tối ưu toán học.</span>
+                  <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-fixed/25 via-surface-container-lowest to-surface-container-low rounded-xl border border-primary/25 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-label text-xs font-bold text-primary flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[17px]">verified</span>
+                        Gợi Ý Trả Lời Tối Ưu Từ Hội Đồng (Chuẩn PREP)
+                      </span>
+                    </div>
+                    <p className="font-body text-sm text-on-surface leading-relaxed">
+                      {item.optimal_answer}
+                    </p>
+                    {item.key_takeaway && (
+                      <div className="flex items-center gap-2 pt-1 font-label text-xs text-primary font-semibold">
+                        <span className="material-symbols-outlined text-[15px]">
+                          tips_and_updates
+                        </span>
+                        <span>Bài học rút ra: {item.key_takeaway}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            ))
+          ) : (
+            <p className="text-xs text-on-surface-variant italic">
+              Chưa có dữ liệu câu trả lời chi tiết cho phiên này.
+            </p>
+          )}
         </div>
       </section>
     </main>

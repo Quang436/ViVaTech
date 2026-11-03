@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
-import type { CouncilPersona } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import type { CouncilPersona, UploadedDocument } from '../types';
 
 interface SetupViewProps {
   selectedPersona: CouncilPersona;
   onSelectPersona: (persona: CouncilPersona) => void;
+  documents: UploadedDocument[];
   onStartDebate: (params: {
     title: string;
     topic_summary?: string;
@@ -13,80 +14,83 @@ interface SetupViewProps {
     mode: 'voice' | 'text';
   }) => void;
   isLoading: boolean;
-  onFileUpload: (file: File) => Promise<{ document_id: string; filename: string; summary: string }>;
+  onFileUpload: (file: File) => Promise<UploadedDocument>;
 }
-
-const SAMPLE_TOPICS = [
-  {
-    title: 'Ứng dụng Heterogeneous GNN kết hợp ViBERT trong phân tích văn bản học thuật',
-    filename: 'Do_An_Tot_Nghiep_AI_Khang_2025.pdf',
-    pages: '148 trang',
-    coverage: '94.6%',
-    segments: '18 Phân đoạn RAG',
-    summary: 'Mô hình kết hợp trích xuất đặc trưng ngữ nghĩa bằng ViBERT và biểu diễn liên kết đa thực thể bằng Heterogeneous GNN giúp tăng độ chính xác phân loại tài liệu học thuật.',
-  },
-  {
-    title: 'Nền tảng EdTech Cá nhân hóa Lộ trình Học tập Dựa trên Generative AI & RAG',
-    filename: 'Bao_Cao_Nghien_Cuu_EdTech_2025.pdf',
-    pages: '96 trang',
-    coverage: '96.2%',
-    segments: '24 Phân đoạn RAG',
-    summary: 'Phân tích lỗ hổng kiến thức sinh viên qua các bài kiểm tra thích ứng và sinh lộ trình vi mô tự động với kỹ thuật RAG độ trễ thấp.',
-  },
-  {
-    title: 'Kiến trúc Microservices Chịu lỗi Cao cho Hệ thống Giao dịch Fintech',
-    filename: 'Kien_Truc_He_Thong_Fintech.pdf',
-    pages: '112 trang',
-    coverage: '91.8%',
-    segments: '15 Phân đoạn RAG',
-    summary: 'Áp dụng mô hình Saga Pattern kết hợp Kafka và Event Sourcing để đảm bảo tính nhất quán dữ liệu giao dịch tài chính.',
-  },
-];
 
 export const SetupView: React.FC<SetupViewProps> = ({
   selectedPersona,
   onSelectPersona,
+  documents,
   onStartDebate,
   isLoading,
   onFileUpload,
 }) => {
-  const [selectedTopic, setSelectedTopic] = useState(SAMPLE_TOPICS[0]);
-  const [customTitle, setCustomTitle] = useState(SAMPLE_TOPICS[0].title);
-  const [isCustomEditing, setIsCustomEditing] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<UploadedDocument | null>(
+    documents.length > 0 ? documents[0] : null
+  );
+  const [customTitle, setCustomTitle] = useState<string>(
+    documents.length > 0
+      ? documents[0].filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')
+      : ''
+  );
+  const [customSummary, setCustomSummary] = useState<string>(
+    documents.length > 0 ? documents[0].summary : ''
+  );
   const [maxTurns, setMaxTurns] = useState<number>(5);
   const [interactionMode, setInteractionMode] = useState<'voice' | 'text'>('voice');
   const [isUploading, setIsUploading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedDoc && documents.length > 0) {
+      const first = documents[0];
+      setSelectedDoc(first);
+      if (!customTitle.trim()) {
+        setCustomTitle(first.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+      }
+      if (!customSummary.trim()) {
+        setCustomSummary(first.summary);
+      }
+    }
+  }, [documents]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
+    setErrorMsg(null);
     try {
-      const res = await onFileUpload(file);
-      const newTopic = {
-        title: file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
-        filename: file.name,
-        pages: 'Tài liệu tải lên',
-        coverage: '98.5%',
-        segments: '22 Phân đoạn RAG',
-        summary: res.summary || 'Tài liệu toàn văn đã được bóc tách và phân đoạn ngữ nghĩa.',
-      };
-      setSelectedTopic(newTopic);
-      setCustomTitle(newTopic.title);
-    } catch (err) {
+      const uploaded = await onFileUpload(file);
+      setSelectedDoc(uploaded);
+      setCustomTitle(uploaded.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+      setCustomSummary(uploaded.summary);
+    } catch (err: any) {
       console.error('Lỗi tải tệp:', err);
+      setErrorMsg(err?.message || 'Không thể tải tệp lên hệ thống.');
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleStart = () => {
+    const finalTitle =
+      customTitle.trim() ||
+      (selectedDoc ? selectedDoc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : '');
+
+    if (!finalTitle) {
+      setErrorMsg('Vui lòng tải lên tài liệu đề án hoặc nhập tên đề tài cần bảo vệ.');
+      return;
+    }
+
+    setErrorMsg(null);
     onStartDebate({
-      title: customTitle.trim() || selectedTopic.title,
-      topic_summary: selectedTopic.summary,
-      document_name: selectedTopic.filename,
+      title: finalTitle,
+      topic_summary: customSummary.trim() || selectedDoc?.summary || undefined,
+      document_id: selectedDoc?.document_id,
+      document_name: selectedDoc?.filename,
       max_turns: maxTurns,
       mode: interactionMode,
     });
@@ -94,7 +98,8 @@ export const SetupView: React.FC<SetupViewProps> = ({
 
   const getCouncilLabel = () => {
     if (selectedPersona === 'feynman') return 'Cấp 1 • Feynman (GS. Lê Minh Triết)';
-    if (selectedPersona === 'academic_reviewer') return 'Cấp 2 • Học thuật Chuẩn (PGS. TS. Trần Thu Hà)';
+    if (selectedPersona === 'academic_reviewer')
+      return 'Cấp 2 • Học thuật Chuẩn (PGS. TS. Trần Thu Hà)';
     return 'Cấp 3 • Stress-Test (GS. Viện sĩ Hoàng Vĩnh)';
   };
 
@@ -108,13 +113,13 @@ export const SetupView: React.FC<SetupViewProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
-            Gemini 3.8 CoT • Academic Examiner Engine
+            Gemini AI Live CoT • Academic Examiner Engine
           </div>
           <h1 className="font-headline text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-on-surface">
             Thiết Lập Hội Đồng Phản Biện
           </h1>
           <p className="font-body text-sm sm:text-base text-on-surface-variant mt-2 max-w-2xl leading-relaxed">
-            Sẵn sàng bước vào phiên chất vấn bảo vệ luận án thực chiến trong 30 giây. Chọn cấp độ hội đồng và tùy chỉnh thời lượng phù hợp.
+            Nhập đề tài hoặc chọn tài liệu thực tế đã tải lên, chọn cấp độ Hội đồng AI và bước vào phiên bảo vệ trực tiếp.
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 self-start md:self-auto">
@@ -124,76 +129,59 @@ export const SetupView: React.FC<SetupViewProps> = ({
               <div className="text-[10px] font-label uppercase tracking-wider text-on-surface-variant font-bold">
                 Trạng thái RAG
               </div>
-              <div className="text-xs font-bold text-on-surface">Đã sẵn sàng chất vấn</div>
+              <div className="text-xs font-bold text-on-surface">
+                {selectedDoc
+                  ? `Đã gắn: ${selectedDoc.total_chunks} phân đoạn`
+                  : 'Nhập đề tài trực tiếp / Tải file'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* PHẦN 1: TÓM TẮT ĐỀ ÁN SẴN SÀNG (STREAMLINED & CLEAN) */}
-      <section className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl border border-surface-container-high/80 p-5 sm:p-6 shadow-xs hover-lift">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          {/* File badge & Metadata */}
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-13 rounded-xl bg-primary-fixed/40 border border-primary/20 flex flex-col items-center justify-center text-primary shrink-0 shadow-xs p-2">
-              <span className="text-[10px] font-label font-extrabold tracking-tight">PDF</span>
-              <span className="material-symbols-outlined text-xl leading-none">description</span>
+      {errorMsg && (
+        <div className="p-3.5 rounded-xl bg-error-container/80 border border-error/30 text-on-error-container text-xs font-label flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-base">warning</span>
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => setErrorMsg(null)}
+            className="text-xs font-bold underline cursor-pointer bg-transparent border-none"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
+
+      {/* PHẦN 1: THÔNG TIN ĐỀ TÀI & TÀI LIỆU THẬT */}
+      <section className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl border border-surface-container-high/80 p-5 sm:p-6 shadow-xs hover-lift space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-primary-fixed/40 border border-primary/20 flex flex-col items-center justify-center text-primary shrink-0 shadow-xs">
+              <span className="material-symbols-outlined text-2xl">description</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-base font-label font-bold text-on-surface truncate">
-                  {selectedTopic.filename}
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-label font-bold text-on-surface">
+                  {selectedDoc ? selectedDoc.filename : 'Thiết lập đề tài bảo vệ'}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Toàn văn đã lập chỉ mục
-                </span>
+                {selectedDoc && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    {selectedDoc.pages} trang • {selectedDoc.total_chunks} phân đoạn RAG
+                  </span>
+                )}
               </div>
-              {isCustomEditing ? (
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    className="text-xs font-body p-2 border border-primary rounded-lg bg-surface-container-lowest text-on-surface w-full max-w-lg focus:outline-none"
-                    placeholder="Nhập tiêu đề đề tài cần bảo vệ..."
-                  />
-                  <button
-                    onClick={() => setIsCustomEditing(false)}
-                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-label cursor-pointer"
-                  >
-                    Lưu
-                  </button>
-                </div>
-              ) : (
-                <p className="text-xs text-on-surface-variant font-body mt-1">
-                  Đề tài:{' '}
-                  <span className="font-semibold text-on-surface cursor-pointer hover:underline" onClick={() => setIsCustomEditing(true)}>
-                    {customTitle}
-                  </span>{' '}
-                  • {selectedTopic.pages}
-                </p>
-              )}
+              <p className="text-xs text-on-surface-variant font-body mt-0.5">
+                {selectedDoc
+                  ? 'Hội đồng AI sẽ đối chiếu trực tiếp với nội dung tài liệu này khi chất vấn.'
+                  : 'Bạn có thể tải tệp báo cáo (.pdf, .docx, .txt) hoặc nhập tên & tóm tắt đề tài bên dưới.'}
+              </p>
             </div>
           </div>
 
-          {/* Quick Metrics Pill Group & Switch File Button */}
-          <div className="flex items-center gap-2 sm:gap-4 flex-wrap shrink-0">
-            <div className="px-3.5 py-2 rounded-xl bg-surface-container-low/70 border border-surface-container-high/50 flex items-center gap-2.5">
-              <span className="material-symbols-outlined text-primary text-lg">pie_chart</span>
-              <div className="text-left leading-tight">
-                <div className="text-[10px] text-on-surface-variant font-label uppercase">Bao phủ tri thức</div>
-                <div className="text-xs font-bold text-primary">{selectedTopic.coverage} Nội dung</div>
-              </div>
-            </div>
-            <div className="px-3.5 py-2 rounded-xl bg-surface-container-low/70 border border-surface-container-high/50 flex items-center gap-2.5">
-              <span className="material-symbols-outlined text-secondary text-lg">segment</span>
-              <div className="text-left leading-tight">
-                <div className="text-[10px] text-on-surface-variant font-label uppercase">Trích đoạn cốt lõi</div>
-                <div className="text-xs font-bold text-secondary">{selectedTopic.segments}</div>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             <input
               type="file"
               ref={fileInputRef}
@@ -202,44 +190,85 @@ export const SetupView: React.FC<SetupViewProps> = ({
               className="hidden"
             />
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-surface-container-high text-xs font-label font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Đổi tệp PDF khác"
+              className="px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-label font-bold flex items-center gap-1.5 transition-colors cursor-pointer border-none shadow-xs"
             >
               <span className={`material-symbols-outlined text-base ${isUploading ? 'animate-spin' : ''}`}>
-                {isUploading ? 'sync' : 'sync'}
+                {isUploading ? 'sync' : 'upload_file'}
               </span>
-              <span className="hidden sm:inline">{isUploading ? 'Đang nạp...' : 'Thay tệp'}</span>
+              <span>{isUploading ? 'Đang bóc tách RAG...' : 'Tải tệp đề án (.PDF / .DOCX / .TXT)'}</span>
             </button>
+            {selectedDoc && (
+              <button
+                type="button"
+                onClick={() => setSelectedDoc(null)}
+                className="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-xs font-label font-semibold border border-surface-container-high cursor-pointer"
+              >
+                Bỏ chọn tệp
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Quick Sample Selector Drawer */}
-        <div className="mt-4 pt-3 border-t border-surface-container-high/60 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-label font-bold text-on-surface-variant uppercase tracking-wider mr-1">
-            Đề tài mẫu nhanh:
-          </span>
-          {SAMPLE_TOPICS.map((topic, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setSelectedTopic(topic);
-                setCustomTitle(topic.title);
-              }}
-              className={`text-xs px-2.5 py-1 rounded-lg border font-label transition-all cursor-pointer ${
-                selectedTopic.filename === topic.filename
-                  ? 'bg-primary-fixed/40 border-primary text-primary font-bold'
-                  : 'bg-surface-container-lowest border-surface-container-high text-on-surface-variant hover:bg-surface-container-low'
-              }`}
-            >
-              #{idx + 1} {topic.title.slice(0, 32)}...
-            </button>
-          ))}
+        {/* Inputs cho Tên đề tài & Tóm tắt đề tài thật */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2">
+          <div className="md:col-span-5 flex flex-col gap-1.5">
+            <label className="text-xs font-label font-bold text-on-surface">
+              Tên đề tài / Khóa luận bảo vệ <span className="text-error">*</span>
+            </label>
+            <input
+              type="text"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              placeholder="Nhập tên đề tài nghiên cứu hoặc đồ án của bạn..."
+              className="w-full px-3.5 py-2.5 rounded-xl border border-surface-container-high bg-surface-container-lowest text-sm font-body text-on-surface focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div className="md:col-span-7 flex flex-col gap-1.5">
+            <label className="text-xs font-label font-bold text-on-surface">
+              Tóm tắt nội dung / Luận điểm cốt lõi (Ground Truth Context)
+            </label>
+            <input
+              type="text"
+              value={customSummary}
+              onChange={(e) => setCustomSummary(e.target.value)}
+              placeholder="Mô tả ngắn gọn phương pháp, công nghệ hoặc kết quả chính của đề tài (tự động điền khi tải file)..."
+              className="w-full px-3.5 py-2.5 rounded-xl border border-surface-container-high bg-surface-container-lowest text-sm font-body text-on-surface focus:outline-none focus:border-primary"
+            />
+          </div>
         </div>
+
+        {/* Danh sách các tài liệu thật đã nạp trước đó (nếu có) */}
+        {documents.length > 0 && (
+          <div className="pt-3 border-t border-surface-container-high/60 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-label font-bold text-on-surface-variant uppercase tracking-wider mr-1">
+              Tài liệu đã tải lên ({documents.length}):
+            </span>
+            {documents.map((doc) => (
+              <button
+                key={doc.document_id}
+                type="button"
+                onClick={() => {
+                  setSelectedDoc(doc);
+                  setCustomTitle(doc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+                  setCustomSummary(doc.summary);
+                }}
+                className={`text-xs px-3 py-1 rounded-lg border font-label transition-all cursor-pointer ${
+                  selectedDoc?.document_id === doc.document_id
+                    ? 'bg-primary-fixed/40 border-primary text-primary font-bold'
+                    : 'bg-surface-container-lowest border-surface-container-high text-on-surface-variant hover:bg-surface-container-low'
+                }`}
+              >
+                {doc.filename} ({doc.total_chunks} đoạn)
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* PHẦN 2: LỰA CHỌN 3 CẤP ĐỘ HỘI ĐỒNG PHẢN BIỆN (INTERACTIVE 3-TIER PERSONAS) */}
+      {/* PHẦN 2: LỰA CHỌN 3 CẤP ĐỘ HỘI ĐỒNG PHẢN BIỆN */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
@@ -255,7 +284,6 @@ export const SetupView: React.FC<SetupViewProps> = ({
           </p>
         </div>
 
-        {/* Grid 3 Persona Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5" id="persona-cards-group">
           {/* CẤP 1 - FEYNMAN */}
           <div
@@ -289,17 +317,8 @@ export const SetupView: React.FC<SetupViewProps> = ({
               <p className="font-body text-xs sm:text-sm text-on-surface-variant leading-relaxed mb-5">
                 Kiểm tra khả năng tinh giản vấn đề phức tạp thành ngôn ngữ trực giác, bóc tách luận điểm không cho phép nói vẹt lý thuyết rườm rà.
               </p>
-              {/* Sample question */}
-              <div className="bg-surface-container-low/70 p-3.5 rounded-xl border border-surface-container-high/40 text-xs">
-                <span className="font-label text-[10px] uppercase tracking-wide text-primary font-bold block mb-1">
-                  Ví dụ chất vấn:
-                </span>
-                <p className="font-headline text-on-surface italic text-xs leading-snug">
-                  "Nếu giải thích đóng góp của mô hình này cho người ngoài ngành trong 60 giây, bạn sẽ bắt đầu từ đâu?"
-                </p>
-              </div>
             </div>
-            <div className="pt-4 mt-5 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
+            <div className="pt-4 mt-2 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
               <span className="text-on-surface-variant">
                 Cường độ: <strong className="text-on-surface">Ôn hòa</strong>
               </span>
@@ -307,7 +326,7 @@ export const SetupView: React.FC<SetupViewProps> = ({
             </div>
           </div>
 
-          {/* CẤP 2 - HỌC THUẬT CHUẨN MỰC (MẶC ĐỊNH ACTIVE) */}
+          {/* CẤP 2 - HỌC THUẬT CHUẨN MỰC */}
           <div
             onClick={() => onSelectPersona('academic_reviewer')}
             className={`persona-card cursor-pointer rounded-2xl p-6 bg-surface-container-lowest/90 backdrop-blur-sm border hover-lift flex flex-col justify-between transition-all group relative ${
@@ -339,17 +358,8 @@ export const SetupView: React.FC<SetupViewProps> = ({
               <p className="font-body text-xs sm:text-sm text-on-surface-variant leading-relaxed mb-5">
                 Đánh giá theo chuẩn rubric Scopus/ISI, soi kỹ khoảng trống tri thức, mẫu khảo sát và tính hợp lệ của phương pháp thực nghiệm.
               </p>
-              {/* Sample question */}
-              <div className="bg-primary/5 p-3.5 rounded-xl border border-primary/15 text-xs">
-                <span className="font-label text-[10px] uppercase tracking-wide text-secondary font-bold block mb-1">
-                  Ví dụ chất vấn:
-                </span>
-                <p className="font-headline text-on-surface italic text-xs leading-snug">
-                  "Phương pháp baseline của bạn đã bỏ sót công trình công bố gần nhất. Hãy chứng minh giải pháp vẫn ưu việt?"
-                </p>
-              </div>
             </div>
-            <div className="pt-4 mt-5 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
+            <div className="pt-4 mt-2 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
               <span className="text-on-surface-variant">
                 Cường độ: <strong className="text-on-surface">Chuyên sâu</strong>
               </span>
@@ -389,17 +399,8 @@ export const SetupView: React.FC<SetupViewProps> = ({
               <p className="font-body text-xs sm:text-sm text-on-surface-variant leading-relaxed mb-5">
                 Truy vấn dồn dập vào trường hợp ngoại lệ (Edge Cases), bắt bẻ các ngụy biện khái quát vội và thử thách bản lĩnh chịu áp lực cao.
               </p>
-              {/* Sample question */}
-              <div className="bg-surface-container-low/70 p-3.5 rounded-xl border border-surface-container-high/40 text-xs">
-                <span className="font-label text-[10px] uppercase tracking-wide text-error font-bold block mb-1">
-                  Ví dụ chất vấn:
-                </span>
-                <p className="font-headline text-on-surface italic text-xs leading-snug">
-                  "Kết luận Chương 3 có vẻ mâu thuẫn trực tiếp với Giả thuyết H2 ban đầu. Đề nghị tác giả giải trình thẳng thắn!"
-                </p>
-              </div>
             </div>
-            <div className="pt-4 mt-5 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
+            <div className="pt-4 mt-2 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label">
               <span className="text-on-surface-variant">
                 Cường độ: <strong className="text-error">Dồn dập</strong>
               </span>
@@ -412,7 +413,7 @@ export const SetupView: React.FC<SetupViewProps> = ({
       {/* PHẦN 3: CẤU HÌNH NHANH & CTA CHÍNH */}
       <section className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl border border-surface-container-high/80 p-5 sm:p-7 shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          {/* Cấu hình số lượt (Pill Selector) */}
+          {/* Cấu hình số lượt */}
           <div className="lg:col-span-4 flex flex-col gap-2.5">
             <label className="font-label text-xs uppercase tracking-wider text-on-surface-variant font-bold flex items-center gap-1.5">
               <span className="material-symbols-outlined text-primary text-base">timer</span>
@@ -496,7 +497,7 @@ export const SetupView: React.FC<SetupViewProps> = ({
                 Hội đồng: <strong className="text-on-surface">{getCouncilLabel()}</strong>
               </span>
               <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 100% Sẵn sàng
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Gemini AI Live
               </span>
             </div>
 
@@ -509,7 +510,7 @@ export const SetupView: React.FC<SetupViewProps> = ({
               {isLoading ? (
                 <>
                   <span className="material-symbols-outlined animate-spin text-xl">sync</span>
-                  <span>Đang khởi tạo phiên chất vấn...</span>
+                  <span>Gemini AI đang sinh câu hỏi...</span>
                 </>
               ) : (
                 <>

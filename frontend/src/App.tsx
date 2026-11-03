@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navbar, type ActiveTab, type UserProfile } from './components/Navbar';
 import { SetupView } from './components/SetupView';
 import { ArenaChamber } from './components/ArenaChamber';
@@ -9,74 +9,134 @@ import { NotificationsPopover, type NotificationItem } from './components/Notifi
 import { AuthModal } from './components/AuthModal';
 import { HomeView } from './components/HomeView';
 import { api } from './services/api';
-import type { CouncilPersona, DebateSession, Scorecard } from './types';
+import type { CouncilPersona, DebateSession, Scorecard, UploadedDocument } from './types';
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    title: 'Hội đồng phản biện đã sẵn sàng',
-    description: 'Tài liệu "Do_An_Tot_Nghiep_AI_Khang_2025.pdf" đã hoàn tất bóc tách 18 phân đoạn RAG.',
-    time: '5 phút trước',
-    unread: true,
-    type: 'success',
-    actionLabel: 'Vào phòng tranh biện',
-    actionTab: 'arena',
-  },
-  {
-    id: 'notif-2',
-    title: 'Báo cáo đánh giá phiên gần nhất',
-    description: 'Kết quả phiên thử nghiệm đạt 83.5/100 (Hạng A-). Cần lưu ý bổ sung thông số định lượng VRAM GPU.',
-    time: '2 giờ trước',
-    unread: true,
-    type: 'academic',
-    actionLabel: 'Xem bảng điểm chi tiết',
-    actionTab: 'scorecard',
-  },
-  {
-    id: 'notif-3',
-    title: 'Khuyến nghị ôn tập PREP',
-    description: 'Giám khảo phát hiện lỗi né tránh số liệu thực nghiệm. Hãy rèn luyện trả lời theo cấu trúc Point-Reason-Example-Point.',
-    time: 'Hôm qua',
-    unread: false,
-    type: 'warning',
-    actionLabel: 'Xem kịch bản mẫu',
-    actionTab: 'scorecard',
-  },
-  {
-    id: 'notif-4',
-    title: 'Đã thêm giám khảo Stress-Test mới',
-    description: 'GS. Viện sĩ Hoàng Vĩnh đã sẵn sàng cho kịch bản truy vấn biên cực đoan và đối kháng cao.',
-    time: '2 ngày trước',
-    unread: false,
-    type: 'info',
-    actionLabel: 'Đổi cấp độ hội đồng',
-    actionTab: 'setup',
-  },
-];
+const DEFAULT_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('setup');
   const [selectedPersona, setSelectedPersona] = useState<CouncilPersona>('academic_reviewer');
   const [activeSession, setActiveSession] = useState<DebateSession | null>(null);
   const [scorecardData, setScorecardData] = useState<Scorecard | null>(null);
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [sessions, setSessions] = useState<DebateSession[]>([]);
+  const [scorecards, setScorecards] = useState<Scorecard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCouncilThinking, setIsCouncilThinking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
 
-  // Auth & User Profile State
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>({
-    name: 'Nguyễn Văn Khang',
-    email: 'khang.nguyen@hcmut.edu.vn',
-    role: 'Học viên Khóa 2025',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms',
+  // Auth & User Profile State (Lưu thực tế vào localStorage)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('viva_arena_user');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {
+      name: 'Nghiên cứu sinh',
+      email: 'researcher@viva-arena.edu.vn',
+      role: 'Bảo vệ Khóa luận',
+      avatar: DEFAULT_AVATAR,
+    };
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Notifications State
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  // Notifications State (Sinh động từ sự kiện thực tế của hệ thống)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // Step 1: Start Debate Session
+  // Tải toàn bộ dữ liệu thật từ Backend (Documents, Sessions, Scorecards)
+  const refreshRealData = useCallback(async () => {
+    try {
+      const [docsList, sessList, cardsList] = await Promise.all([
+        api.listDocuments().catch(() => []),
+        api.listSessions().catch(() => []),
+        api.listScorecards().catch(() => []),
+      ]);
+      setDocuments(docsList);
+      setSessions(sessList);
+      setScorecards(cardsList);
+
+      // Tạo thông báo thực tế từ dữ liệu hệ thống
+      const realNotifs: NotificationItem[] = [];
+      if (docsList.length > 0) {
+        realNotifs.push({
+          id: `doc-${docsList[0].document_id}`,
+          title: 'Tài liệu RAG đã sẵn sàng',
+          description: `Tệp "${docsList[0].filename}" (${docsList[0].total_chunks} phân đoạn) đã được lập chỉ mục trong Vector DB.`,
+          time: 'Mới nhất',
+          unread: true,
+          type: 'success',
+          actionLabel: 'Quản lý tài liệu',
+          actionTab: 'documents',
+        });
+      }
+      if (cardsList.length > 0) {
+        realNotifs.push({
+          id: `card-${cardsList[0].id}`,
+          title: 'Báo cáo chấm điểm gần nhất',
+          description: `Phiên #${cardsList[0].session_id.slice(0, 6).toUpperCase()} đạt ${cardsList[0].overall_score.toFixed(1)}/100 điểm.`,
+          time: 'Đã lưu DB',
+          unread: false,
+          type: 'academic',
+          actionLabel: 'Xem bảng điểm',
+          actionTab: 'scorecard',
+        });
+      }
+      if (sessList.length > 0) {
+        realNotifs.push({
+          id: `sess-${sessList[0].id}`,
+          title: `Phiên gần nhất: ${sessList[0].title.slice(0, 45)}`,
+          description: `Trạng thái: ${sessList[0].status === 'completed' ? 'Đã hoàn thành' : `Đang ở lượt ${sessList[0].current_turn}/${sessList[0].max_turns}`}.`,
+          time: 'Lịch sử hệ thống',
+          unread: false,
+          type: 'info',
+          actionLabel: 'Xem lịch sử',
+          actionTab: 'archive',
+        });
+      }
+      setNotifications(realNotifs);
+
+      if (!scorecardData && cardsList.length > 0) {
+        setScorecardData(cardsList[0]);
+      }
+    } catch (err) {
+      console.error('Lỗi đồng bộ dữ liệu thật từ Backend:', err);
+    }
+  }, [scorecardData]);
+
+  useEffect(() => {
+    refreshRealData();
+  }, []);
+
+  // Upload Document thật & cập nhật danh sách
+  const handleUploadDocument = async (file: File): Promise<UploadedDocument> => {
+    const uploaded = await api.uploadDocument(file);
+    setDocuments((prev) => [uploaded, ...prev.filter((d) => d.document_id !== uploaded.document_id)]);
+    setNotifications((prev) => [
+      {
+        id: `upload-${uploaded.document_id}`,
+        title: 'Đã nạp tài liệu vào Vector DB',
+        description: `"${uploaded.filename}" đã được bóc tách ${uploaded.total_chunks} phân đoạn RAG.`,
+        time: 'Vừa xong',
+        unread: true,
+        type: 'success',
+        actionLabel: 'Tạo phiên chất vấn',
+        actionTab: 'setup',
+      },
+      ...prev,
+    ]);
+    return uploaded;
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    await api.deleteDocument(docId);
+    setDocuments((prev) => prev.filter((d) => d.document_id !== docId));
+  };
+
+  // Step 1: Start Debate Session (Dữ liệu thật từ Gemini AI & SQLite)
   const handleStartDebate = async (params: {
     title: string;
     topic_summary?: string;
@@ -95,19 +155,22 @@ export function App() {
         title: params.title,
         persona: selectedPersona,
         document_id: params.document_id,
+        document_name: params.document_name,
         topic_summary: params.topic_summary,
         max_turns: params.max_turns,
       });
       setActiveSession(session);
+      setSessions((prev) => [session, ...prev]);
       setActiveTab('arena');
     } catch (err) {
       console.error('Lỗi khởi tạo phiên:', err);
+      alert(err instanceof Error ? err.message : 'Không thể khởi tạo phiên tranh biện.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Step 2: Submit Turn Response
+  // Step 2: Submit Turn Response (Gửi câu trả lời thật -> Gemini CoT chấm & hỏi tiếp)
   const handleSubmitTurn = async (response: string, mode: 'voice' | 'text', duration: number) => {
     if (!activeSession) return;
     setIsCouncilThinking(true);
@@ -121,6 +184,7 @@ export function App() {
             ...t,
             student_response: response,
             response_mode: mode,
+            duration_seconds: duration,
             ground_truth_accuracy: rebuttal.ground_truth_accuracy,
             logic_flaws: rebuttal.detected_flaws,
             critique_comment: rebuttal.critique_previous_answer,
@@ -131,13 +195,15 @@ export function App() {
       });
 
       if (rebuttal.is_completed || activeSession.current_turn >= activeSession.max_turns) {
-        setActiveSession({
+        const completedSession: DebateSession = {
           ...activeSession,
           turns: updatedTurns,
           status: 'completed',
-        });
+        };
+        setActiveSession(completedSession);
         const card = await api.getScorecard(activeSession.id);
         setScorecardData(card);
+        await refreshRealData();
         setActiveTab('scorecard');
       } else {
         const nextTurnObj = {
@@ -149,32 +215,69 @@ export function App() {
           ai_thought_process: rebuttal.cot_reasoning,
         };
 
-        setActiveSession({
+        const nextSession: DebateSession = {
           ...activeSession,
           current_turn: activeSession.current_turn + 1,
           turns: [...updatedTurns, nextTurnObj],
-        });
+        };
+        setActiveSession(nextSession);
+        setSessions((prev) => prev.map((s) => (s.id === nextSession.id ? nextSession : s)));
       }
     } catch (err) {
       console.error('Lỗi gửi phản hồi:', err);
+      alert(err instanceof Error ? err.message : 'Lỗi khi xử lý câu trả lời.');
     } finally {
       setIsCouncilThinking(false);
     }
   };
 
+  const handleViewSessionScorecard = async (sess: DebateSession) => {
+    setIsLoading(true);
+    try {
+      const card = await api.getScorecard(sess.id);
+      setActiveSession(sess);
+      setScorecardData(card);
+      await refreshRealData();
+      setActiveTab('scorecard');
+    } catch (err) {
+      console.error('Lỗi lấy bảng điểm:', err);
+      alert(err instanceof Error ? err.message : 'Không thể tạo bảng điểm cho phiên này.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await api.deleteSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setScorecards((prev) => prev.filter((c) => c.session_id !== sessionId));
+      if (activeSession?.id === sessionId) {
+        setActiveSession(null);
+      }
+    } catch (err) {
+      console.error('Lỗi xóa phiên:', err);
+    }
+  };
+
   const handleRestart = () => {
     setActiveSession(null);
-    setScorecardData(null);
     setActiveTab('setup');
   };
 
   const handleLoginSuccess = (user: { name: string; email: string; role: string }) => {
-    setCurrentUser({
+    const newProfile: UserProfile = {
       name: user.name,
       email: user.email,
       role: user.role,
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms',
-    });
+      avatar: DEFAULT_AVATAR,
+    };
+    setCurrentUser(newProfile);
+    try {
+      localStorage.setItem('viva_arena_user', JSON.stringify(newProfile));
+    } catch {
+      // ignore
+    }
     if (activeTab === 'home') {
       setActiveTab('setup');
     }
@@ -183,6 +286,11 @@ export function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setActiveSession(null);
+    try {
+      localStorage.removeItem('viva_arena_user');
+    } catch {
+      // ignore
+    }
     setActiveTab('home');
     setIsNotificationsOpen(false);
   };
@@ -207,21 +315,14 @@ export function App() {
       <Navbar
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          if (tab === 'arena' && !activeSession) {
-            if (!currentUser) {
-              setIsAuthModalOpen(true);
-              return;
-            }
-            handleStartDebate({
-              title: 'Ứng dụng Heterogeneous GNN kết hợp ViBERT trong phân tích văn bản học thuật',
-              max_turns: 5,
-              mode: 'voice',
-            });
-            return;
+          if (tab === 'archive' || tab === 'documents') {
+            refreshRealData();
           }
           setActiveTab(tab);
         }}
-        sessionCode={activeSession ? `#VV-${activeSession.id.slice(-4).toUpperCase()}` : '#VV-9042'}
+        sessionCode={
+          activeSession ? `#VV-${activeSession.id.slice(0, 4).toUpperCase()}` : '#CHƯA-MỞ'
+        }
         hasActiveSession={!!activeSession}
         user={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
@@ -230,7 +331,7 @@ export function App() {
         unreadNotificationCount={unreadCount}
       />
 
-      {/* Notifications Popover (Chỉ mở khi đã đăng nhập) */}
+      {/* Notifications Popover */}
       {currentUser && (
         <NotificationsPopover
           notifications={notifications}
@@ -262,7 +363,10 @@ export function App() {
                 setActiveTab('setup');
               }
             }}
-            onExploreArchive={() => setActiveTab('archive')}
+            onExploreArchive={() => {
+              refreshRealData();
+              setActiveTab('archive');
+            }}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             user={currentUser}
           />
@@ -272,9 +376,10 @@ export function App() {
           <SetupView
             selectedPersona={selectedPersona}
             onSelectPersona={(p) => setSelectedPersona(p)}
+            documents={documents}
             onStartDebate={handleStartDebate}
             isLoading={isLoading}
-            onFileUpload={api.uploadDocument}
+            onFileUpload={handleUploadDocument}
           />
         )}
 
@@ -283,16 +388,29 @@ export function App() {
             <div className="w-16 h-16 rounded-2xl bg-primary-fixed/40 text-primary flex items-center justify-center">
               <span className="material-symbols-outlined text-3xl">psychology</span>
             </div>
-            <h2 className="font-headline text-2xl font-bold text-on-surface">Chưa có phiên tranh biện hoạt động</h2>
+            <h2 className="font-headline text-2xl font-bold text-on-surface">
+              Chưa có phiên tranh biện đang mở
+            </h2>
             <p className="font-body text-xs sm:text-sm text-on-surface-variant max-w-md">
-              Vui lòng thiết lập đề tài và chọn Hội đồng phản biện để bắt đầu phiên tranh biện AI.
+              Vui lòng chọn tài liệu / nhập đề tài thực tế tại mục Thiết lập để khởi tạo phiên chất vấn với Hội đồng AI, hoặc tiếp tục một phiên từ Lịch sử.
             </p>
-            <button
-              onClick={() => setActiveTab('setup')}
-              className="px-5 py-2.5 rounded-xl bg-primary text-white font-label text-xs sm:text-sm font-bold hover:bg-primary-container transition-all cursor-pointer border-none"
-            >
-              Đến Thiết lập đề tài
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab('setup')}
+                className="px-5 py-2.5 rounded-xl bg-primary text-white font-label text-xs sm:text-sm font-bold hover:bg-primary-container transition-all cursor-pointer border-none"
+              >
+                Đến Thiết lập đề tài
+              </button>
+              <button
+                onClick={() => {
+                  refreshRealData();
+                  setActiveTab('archive');
+                }}
+                className="px-5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-label text-xs sm:text-sm font-bold hover:bg-surface-container-low transition-all cursor-pointer"
+              >
+                Mở phiên từ Lịch sử ({sessions.length})
+              </button>
+            </div>
           </div>
         )}
 
@@ -309,59 +427,47 @@ export function App() {
 
         {activeTab === 'scorecard' && (
           <ScorecardView
-            scorecard={
-              scorecardData || {
-                id: 'default-scorecard',
-                session_id: activeSession?.id || 'session-demo',
-                overall_score: 83.5,
-                logic_accuracy_score: 86.0,
-                argumentation_score: 80.0,
-                composure_score: 82.0,
-                clarity_score: 88.0,
-                strengths: [
-                  'Cơ sở toán học vững vàng: Chứng minh chặt chẽ cơ chế hội tụ của mô hình lan truyền (Diffusion Probabilistic Models) tại không gian đồ thị đa tầng.',
-                  'Chứng minh ma trận thưa thuyết phục: Giải trình thành công thuật toán nén CSR giúp bảo toàn đặc trưng mà không tổn thất thông tin phân loại.',
-                  'Phản xạ định lý Bayes nhanh nhạy: Ứng biến xuất sắc trước câu hỏi mở rộng về phân phối tiền nghiệm không suy biến của Hội đồng.',
-                ],
-                weaknesses: [
-                  'Né tránh con số thực tế: Còn lúng túng khi giám khảo truy vấn dung lượng VRAM GPU tiêu hao thực tế với dữ liệu quy mô 10 triệu node.',
-                  'Thiếu bảng so sánh phần cứng: Chưa trình bày bảng đối sánh chi phí tính toán (FLOPs/chi phí GPU) so với phương pháp baseline phổ biến.',
-                  'Chiến thuật phản hồi: Cần chủ động thừa nhận giới hạn tài nguyên trước khi trình bày thuật toán thưa để tránh bị hội đồng dồn ép.',
-                ],
-                fallacies_summary: ['Né tránh số liệu thực nghiệm', 'Lập luận theo hướng phỏng đoán'],
-                optimal_answers: [],
-                overall_verdict:
-                  'Ứng viên hoàn thành tốt các lượt phản biện. Đề tài đạt chuẩn phương pháp luận quốc tế; cần bổ sung bảng định lượng tiêu hao tài nguyên phần cứng GPU khi triển khai thực tế.',
-                created_at: new Date().toISOString(),
-              }
-            }
+            scorecard={scorecardData}
             persona={selectedPersona}
-            topicTitle={
-              activeSession?.title ||
-              'Ứng dụng Heterogeneous GNN kết hợp ViBERT trong phân tích văn bản học thuật'
-            }
+            topicTitle={activeSession?.title || 'Phiên bảo vệ học thuật'}
             onRestart={handleRestart}
+            onGoToArchive={() => {
+              refreshRealData();
+              setActiveTab('archive');
+            }}
           />
         )}
 
         {activeTab === 'documents' && (
           <DocumentsView
-            onStartSessionWithDoc={(docName) => {
+            documents={documents}
+            onStartSessionWithDoc={(doc) => {
               handleStartDebate({
-                title: docName.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
-                document_name: docName,
+                title: doc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
+                topic_summary: doc.summary,
+                document_id: doc.document_id,
+                document_name: doc.filename,
                 max_turns: 5,
                 mode: 'voice',
               });
             }}
-            onFileUpload={api.uploadDocument}
+            onFileUpload={handleUploadDocument}
+            onDeleteDocument={handleDeleteDocument}
           />
         )}
 
         {activeTab === 'archive' && (
           <ArchiveView
+            sessions={sessions}
+            scorecards={scorecards}
             onNewSession={() => setActiveTab('setup')}
-            onViewScorecard={() => setActiveTab('scorecard')}
+            onViewScorecard={handleViewSessionScorecard}
+            onResumeSession={(sess) => {
+              setActiveSession(sess);
+              setSelectedPersona(sess.persona);
+              setActiveTab('arena');
+            }}
+            onDeleteSession={handleDeleteSession}
           />
         )}
       </div>
@@ -373,7 +479,7 @@ export function App() {
             VivaArena © 2025 • Phòng Phản Biện & Tranh Biện Học Thuật AI Chuẩn Hội Đồng Quốc Gia
           </span>
           <span className="font-mono text-[11px] text-primary">
-            Powered by Gemini 3.8 CoT & RAG Knowledge Engine
+            Powered by Google Gemini AI, ChromaDB RAG & D-ID WebRTC Agent
           </span>
         </div>
       </footer>

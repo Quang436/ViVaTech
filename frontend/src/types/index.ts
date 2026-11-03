@@ -12,6 +12,17 @@ export interface PersonaInfo {
   difficulty: 'Dễ' | 'Vừa' | 'Khó (Stress-Test)';
 }
 
+export interface UploadedDocument {
+  document_id: string;
+  filename: string;
+  total_chunks: number;
+  pages: number;
+  file_size_bytes: number;
+  summary: string;
+  created_at?: string;
+  message?: string;
+}
+
 export interface DebateTurn {
   id: string;
   turn_number: number;
@@ -19,6 +30,7 @@ export interface DebateTurn {
   ai_question: string;
   student_response?: string | null;
   response_mode?: 'voice' | 'text';
+  duration_seconds?: number;
   ground_truth_accuracy?: number;
   logic_flaws?: string[];
   critique_comment?: string;
@@ -35,6 +47,7 @@ export interface DebateSession {
   title: string;
   persona: CouncilPersona;
   topic_summary?: string;
+  document_id?: string;
   document_name?: string;
   status: 'pending' | 'in_progress' | 'completed';
   max_turns: number;

@@ -6,6 +6,7 @@ import os
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1.api_router import api_router
+from app.api.v1.did_agent import router as did_agent_router
 from app.websockets.debate_ws import handle_debate_websocket
 # Import models to ensure tables are registered with Base
 import app.models
@@ -41,6 +42,8 @@ app.add_middleware(
 
 # API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+# D-ID Agents Real-Time WebRTC Router (/api/did-agent)
+app.include_router(did_agent_router, prefix="/api/did-agent")
 
 # Live Debate WebSocket endpoint
 @app.websocket("/ws/debate/{session_id}")
