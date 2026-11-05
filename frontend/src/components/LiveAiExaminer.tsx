@@ -248,7 +248,7 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
     lastSpokenQuestionRef.current = questionText;
 
     api
-      .speakDidAgentChat({
+      .speakDidAgent({
         stream_id: streamInfoRef.current.streamId,
         session_id: streamInfoRef.current.sessionId,
         text: questionText,
@@ -318,6 +318,11 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
                 <span className="font-medium">
                   {speakerName} • {isCurrentSpeaking ? 'Đang chất vấn' : 'Trực tiếp'}
                 </span>
+                {councilRole && (
+                  <span className="hidden sm:inline text-[10px] text-white/70">
+                    ({councilRole})
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 {onToggleVoice && (
@@ -334,7 +339,7 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
                 <button
                   onClick={initDidWebRtc}
                   className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/10 cursor-pointer"
-                  title="Làm mới luồng video AI"
+                  title={`Làm mới luồng video AI (${connectionStatus})`}
                 >
                   <span className="material-symbols-outlined text-base">refresh</span>
                 </button>
@@ -345,9 +350,16 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
 
         {/* Khung Câu Hỏi Chất Vấn */}
         <div className="mt-5">
-          <span className="text-xs font-label uppercase tracking-wider text-on-surface-variant font-bold block mb-2">
-            Câu hỏi chất vấn
-          </span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-label uppercase tracking-wider text-on-surface-variant font-bold block">
+              Câu hỏi chất vấn
+            </span>
+            {isCurrentSpeaking && audioVolume > 0 && (
+              <span className="text-[10px] font-mono text-primary font-bold">
+                Level: {(audioVolume * 100).toFixed(0)}%
+              </span>
+            )}
+          </div>
           <div className="bg-surface-container-low/70 border-l-4 border-primary rounded-r-xl rounded-bl-xl p-4 shadow-xs">
             <blockquote className="font-headline text-on-surface text-base sm:text-lg italic leading-relaxed">
               {questionText ? (
@@ -392,3 +404,5 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
     </div>
   );
 };
+
+export default LiveAiExaminer;
