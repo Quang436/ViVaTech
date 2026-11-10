@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   ArrowRight,
   BarChart3,
   BookOpen,
   BrainCircuit,
-  Building2,
+  Briefcase,
   Check,
   CircleCheck,
   Cpu,
+  Database,
   FileSearch,
   FileText,
   FlaskConical,
   Gauge,
-  GraduationCap,
   Landmark,
   Layers,
   Mic,
@@ -22,8 +22,15 @@ import {
   Radio,
   ShieldCheck,
   Sparkles,
+  UserCheck,
 } from 'lucide-react';
-import type { CouncilPersona } from '../types';
+import type {
+  CouncilPersona,
+  DebateSession,
+  PlatformStats,
+  Scorecard,
+  UploadedDocument,
+} from '../types';
 import type { UserProfile } from './Navbar';
 
 interface HomeViewProps {
@@ -32,105 +39,13 @@ interface HomeViewProps {
   onOpenAuth: () => void;
   onSelectPersona?: (persona: CouncilPersona) => void;
   user: UserProfile | null;
+  stats: PlatformStats | null;
+  documents?: UploadedDocument[];
+  sessions?: DebateSession[];
+  scorecards?: Scorecard[];
 }
 
-interface SimulationReport {
-  id: number;
-  tabLabel: string;
-  isLive?: boolean;
-  status: string;
-  done: boolean;
-  heading: string;
-  kpis: Array<{
-    label: string;
-    target: number;
-    decimals: number;
-    suffix: string;
-    delta: string;
-    bad?: boolean;
-  }>;
-  chartLabel: string;
-  chartTotal: string;
-  pts: number[];
-  finding: string;
-}
-
-const SIMULATION_REPORTS: SimulationReport[] = [
-  {
-    id: 0,
-    tabLabel: 'Phản biện Chương 3',
-    isLive: true,
-    status: 'Đang chất vấn · Lượt 3/5',
-    done: false,
-    heading: 'Phân tích lập luận · Chương 3: Thực nghiệm',
-    kpis: [
-      { label: 'Ground Truth', target: 94.2, decimals: 1, suffix: '%', delta: '+8.4% RAG' },
-      { label: 'Vững luận điểm', target: 88, decimals: 0, suffix: '/100', delta: '+12 điểm' },
-      { label: 'Lỗ hổng phát hiện', target: 2, decimals: 0, suffix: ' điểm', delta: 'P-value biên', bad: true },
-      { label: 'Độ trễ phản xạ', target: 1.4, decimals: 1, suffix: 's', delta: '-0.6s nhanh hơn' },
-    ],
-    chartLabel: 'Độ khớp chứng cứ RAG · 14 câu hỏi gần nhất',
-    chartTotal: '94.2% khớp',
-    pts: [92, 82, 86, 72, 76, 62, 65, 50, 52, 38, 30, 22, 14, 8],
-    finding:
-      'Bảng 4.2 trang 86 cần nêu rõ khoảng tin cậy P < 0.05 trên tập 500 mẫu biên trước khi kết luận tổng quát.',
-  },
-  {
-    id: 1,
-    tabLabel: 'Feynman Trực giác',
-    status: 'Hoàn tất · 3/3 tiêu chí',
-    done: true,
-    heading: 'Truy vấn bản chất · GS. Lê Minh Triết',
-    kpis: [
-      { label: 'Độ khúc chiết', target: 92, decimals: 0, suffix: '/100', delta: 'Hạng A+' },
-      { label: 'Ví dụ thực tế', target: 5, decimals: 0, suffix: ' ví dụ', delta: 'Trực giác tốt' },
-      { label: 'Thuật ngữ mờ', target: 1, decimals: 0, suffix: ' mục', delta: 'Cần tinh giản', bad: true },
-      { label: 'Nhịp độ nói', target: 132, decimals: 0, suffix: ' từ/p', delta: 'Ổn định' },
-    ],
-    chartLabel: 'Chỉ số truyền đạt mạch lạc · 14 phân đoạn',
-    chartTotal: '92.0 / 100',
-    pts: [88, 84, 78, 72, 70, 60, 54, 48, 42, 34, 28, 22, 18, 12],
-    finding:
-      'Giải thích cơ chế Attention qua ví dụ tìm kiếm từ khóa giúp Hội đồng nắm bắt đóng góp trong 45 giây đầu.',
-  },
-  {
-    id: 2,
-    tabLabel: 'Stress-Test Bắt bài',
-    isLive: true,
-    status: 'Áp lực cao · Lượt 4/5',
-    done: false,
-    heading: 'Phản biện góc biên · GS. Viện sĩ Hoàng Vĩnh',
-    kpis: [
-      { label: 'Bản lĩnh tâm lý', target: 86, decimals: 0, suffix: '/100', delta: '+9.5% giữ vững' },
-      { label: 'Edge Cases vượt', target: 4, decimals: 0, suffix: '/4 ca', delta: 'Không né tránh' },
-      { label: 'Mâu thuẫn logic', target: 1, decimals: 0, suffix: ' cảnh báo', delta: 'Giả thuyết H2', bad: true },
-      { label: 'Tốc độ định hình', target: 1.8, decimals: 1, suffix: 's', delta: 'Chuẩn PREP' },
-    ],
-    chartLabel: 'Đường cong giữ vững lập luận dưới áp lực',
-    chartTotal: '86.0 / 100',
-    pts: [96, 86, 90, 74, 68, 72, 58, 50, 44, 40, 32, 26, 20, 14],
-    finding:
-      'Khi bị truy vấn về sai lệch giữa Giả thuyết H2 và kết luận Chương 3, khung PREP giúp giữ mạch dẫn chứng mạch lạc.',
-  },
-  {
-    id: 3,
-    tabLabel: 'Đánh giá 4 Trục',
-    status: 'Hoàn tất · Đã xuất PDF',
-    done: true,
-    heading: 'Tổng kết E-Portfolio & Chuẩn PREP',
-    kpis: [
-      { label: 'Điểm tổng hợp', target: 91.5, decimals: 1, suffix: '/100', delta: 'Xuất sắc A+' },
-      { label: 'Logic học thuật', target: 94, decimals: 0, suffix: '%', delta: '+14% đầu kỳ' },
-      { label: 'Tranh biện', target: 89, decimals: 0, suffix: '%', delta: 'Đạt chuẩn ISI' },
-      { label: 'Độ súc tích', target: 90, decimals: 0, suffix: '%', delta: '4 lượt tối ưu' },
-    ],
-    chartLabel: 'Tiến bộ qua các phiên diễn tập (Cognitive Curve)',
-    chartTotal: '91.5 / 100',
-    pts: [94, 88, 82, 74, 70, 62, 54, 46, 38, 30, 24, 18, 12, 6],
-    finding:
-      'Sẵn sàng bước vào hội đồng bảo vệ chính thức với 4 câu trả lời chuẩn PREP đã được kiểm chứng số liệu.',
-  },
-];
+type PreviewTabId = 'live' | 'pipeline' | 'personas' | 'rubric';
 
 const COUNCIL_BADGES: Record<
   CouncilPersona,
@@ -170,9 +85,9 @@ const COUNCIL_BADGES: Record<
 };
 
 const MODEL_NOTES: Record<string, string> = {
-  'Gemini 2.5 Pro': 'Suy luận CoT 3 bước · Đối soát toàn văn luận án dài',
+  'Gemini 2.5': 'Suy luận CoT 3 bước · Đối soát toàn văn luận án dài',
   'Gemini Flash': 'Độ trễ thấp · Phản hồi hội thoại giọng nói tức thì',
-  'Vector RAG': 'Chia đoạn ngữ nghĩa · Truy xuất dẫn chứng theo trang',
+  'Vector RAG': 'Chia đoạn ngữ nghĩa · Truy xuất dẫn chứng theo phân đoạn',
   'D-ID WebRTC': 'Video stream giám khảo · Khẩu hình đồng bộ giọng đọc',
   'STT Neural': 'Nhận diện tiếng Việt học thuật · Đo tốc độ nói WPM',
   'PREP Grader': 'Chấm 4 trục Rubric · Gợi ý câu trả lời tối ưu chuẩn PREP',
@@ -190,22 +105,22 @@ const TOOL_TILES = [
 ];
 
 const PIPELINE_STEPS = [
-  { time: '00:00', label: 'Nạp tài liệu & lập chỉ mục RAG' },
-  { time: '01:20', label: 'Khởi tạo CoT 3 bước chất vấn' },
-  { time: '12:00', label: 'Chấm điểm 4 trục & xuất PREP' },
+  { step: '01', label: 'Nạp tài liệu & lập chỉ mục RAG' },
+  { step: '02', label: 'Khởi tạo CoT 3 bước chất vấn' },
+  { step: '03', label: 'Chấm điểm 4 trục & xuất PREP' },
 ];
 
-const buildSparkPaths = (pts: number[]) => {
-  const width = 776;
-  const n = pts.length;
-  let line = '';
-  for (let i = 0; i < n; i++) {
-    const x = ((width * i) / (n - 1)).toFixed(1);
-    const y = (10 + pts[i]).toFixed(1);
-    line += (i ? 'L' : 'M') + x + ' ' + y;
-  }
-  const area = `${line}L${width} 130L0 130Z`;
-  return { line, area };
+const RUBRIC_WEIGHTS = [
+  { label: 'Logic Học Thuật', weight: 35, detail: 'Đối soát Ground Truth RAG' },
+  { label: 'Kỹ Năng Tranh Biện', weight: 30, detail: 'Bảo vệ luận điểm thực nghiệm' },
+  { label: 'Bản Lĩnh Phản Biện', weight: 20, detail: 'Giữ nhịp dưới áp lực hội đồng' },
+  { label: 'Độ Khúc Chiết', weight: 15, detail: 'Cấu trúc PREP súc tích' },
+];
+
+const parseTimestamp = (iso: string): number => {
+  const normalized = iso.endsWith('Z') ? iso : `${iso}Z`;
+  const ts = new Date(normalized).getTime();
+  return Number.isNaN(ts) ? 0 : ts;
 };
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -214,15 +129,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenAuth,
   onSelectPersona,
   user,
+  stats,
+  documents = [],
+  sessions = [],
+  scorecards = [],
 }) => {
-  const [activeReportIdx, setActiveReportIdx] = useState(0);
-  const [seenTabs, setSeenTabs] = useState<Set<number>>(() => new Set([0]));
-  const [sparkReady, setSparkReady] = useState(true);
-  const [animatedKpis, setAnimatedKpis] = useState<number[]>(() =>
-    SIMULATION_REPORTS[0].kpis.map((k) => k.target)
-  );
+  const [previewTabPref, setPreviewTabPref] = useState<{
+    userKey: string | null;
+    tab: PreviewTabId;
+  } | null>(null);
+  const currentUserKey = user?.email ?? null;
+  const activePreviewTab: PreviewTabId =
+    previewTabPref && previewTabPref.userKey === currentUserKey
+      ? previewTabPref.tab
+      : user
+      ? 'live'
+      : 'pipeline';
+  const setActivePreviewTab = (tab: PreviewTabId) => {
+    setPreviewTabPref({ userKey: currentUserKey, tab });
+  };
   const [badgePersona, setBadgePersona] = useState<CouncilPersona>('academic_reviewer');
-  const [selectedModel, setSelectedModel] = useState<string>('Gemini 2.5 Pro');
+  const [selectedModel, setSelectedModel] = useState<string>('Gemini 2.5');
   const [isApproved, setIsApproved] = useState(false);
   const [activeToolLabel, setActiveToolLabel] = useState<string | null>(null);
   const [pipelineIdx, setPipelineIdx] = useState(() =>
@@ -230,52 +157,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? 3
       : 1
   );
-  const [proofValues, setProofValues] = useState<[number, number, number, number]>([
-    98.4, 15000, 42, 4,
-  ]);
-
-  const proofRef = useRef<HTMLDivElement>(null);
-  const pipelineRef = useRef<HTMLDivElement>(null);
-
-  const report = SIMULATION_REPORTS[activeReportIdx];
-  const { line: sparkLinePath, area: sparkAreaPath } = buildSparkPaths(report.pts);
-  const currentBadge = COUNCIL_BADGES[badgePersona];
-
-  // Animate preview KPI numbers & sparkline clip-path reveal on simulation tab change
-  useEffect(() => {
-    const targets = SIMULATION_REPORTS[activeReportIdx].kpis.map((k) => k.target);
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reduceMotion) {
-      setAnimatedKpis(targets);
-      setSparkReady(true);
-      return;
-    }
-
-    setSparkReady(false);
-    const sparkTimer = setTimeout(() => setSparkReady(true), 40);
-
-    let rafId = 0;
-    const duration = 680;
-    const start = performance.now();
-
-    const step = (now: number) => {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setAnimatedKpis(targets.map((val) => val * eased));
-      if (progress < 1) {
-        rafId = requestAnimationFrame(step);
-      }
-    };
-    rafId = requestAnimationFrame(step);
-
-    return () => {
-      clearTimeout(sparkTimer);
-      cancelAnimationFrame(rafId);
-    };
-  }, [activeReportIdx]);
 
   // Animated pipeline indicator respecting prefers-reduced-motion
   useEffect(() => {
@@ -292,56 +173,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Proof counters count-up once scrolled into view
-  useEffect(() => {
-    const el = proofRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion) return;
+  const currentBadge = COUNCIL_BADGES[badgePersona];
 
-    let rafId = 0;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0]?.isIntersecting) return;
-        observer.disconnect();
-        const start = performance.now();
-        const duration = 1100;
-        const targets: [number, number, number, number] = [98.4, 15000, 42, 4];
+  // Derived 100% real user stats (only computed when authenticated)
+  const userTotalChunks = documents.reduce((acc, doc) => acc + (doc.total_chunks || 0), 0);
+  const userCompletedCount = sessions.filter((s) => s.status === 'completed').length;
+  const userAvgScore =
+    scorecards.length > 0
+      ? scorecards.reduce((acc, sc) => acc + sc.overall_score, 0) / scorecards.length
+      : null;
 
-        const tick = (now: number) => {
-          const k = Math.min(1, (now - start) / duration);
-          const eased = 1 - Math.pow(1 - k, 3);
-          setProofValues([
-            Number((targets[0] * eased).toFixed(1)),
-            Math.round(targets[1] * eased),
-            Math.round(targets[2] * eased),
-            Math.max(1, Math.round(targets[3] * eased)),
-          ]);
-          if (k < 1) {
-            rafId = requestAnimationFrame(tick);
-          }
-        };
-        rafId = requestAnimationFrame(tick);
-      },
-      { threshold: 0.35 }
-    );
-    observer.observe(el);
+  const chronologicalScorecards = [...scorecards]
+    .sort((a, b) => parseTimestamp(a.created_at) - parseTimestamp(b.created_at))
+    .slice(-8);
 
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  const handleSelectReport = (idx: number) => {
-    if (idx === activeReportIdx) return;
-    setActiveReportIdx(idx);
-    setSeenTabs((prev) => {
-      const next = new Set(prev);
-      next.add(idx);
-      return next;
-    });
-  };
+  const previewTabs: Array<{ id: PreviewTabId; label: string }> = user
+    ? [
+        { id: 'live', label: 'Hồ sơ thật của bạn' },
+        { id: 'pipeline', label: 'Quy trình RAG & CoT' },
+        { id: 'personas', label: '3 Cấp Giám Khảo' },
+        { id: 'rubric', label: 'Rubric 4 Trục PREP' },
+      ]
+    : [
+        { id: 'pipeline', label: 'Quy trình RAG & CoT' },
+        { id: 'personas', label: '3 Cấp Giám Khảo' },
+        { id: 'rubric', label: 'Rubric 4 Trục PREP' },
+      ];
 
   const handlePersonaPick = (persona: CouncilPersona) => {
     if (onSelectPersona) {
@@ -363,7 +220,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="inline-flex items-center gap-2.5 py-1 pl-1 pr-3.5 rounded-full bg-white border border-[rgba(10,20,19,0.12)] shadow-2xs text-xs sm:text-[13px] text-[#0a1413] hover:border-[rgba(11,110,94,0.35)] hover:bg-[#eff5f3]/70 transition-all cursor-pointer group"
           >
             <span className="px-2.5 py-1 rounded-full bg-[#6ee7c8] text-[#064037] font-mono font-semibold text-[10px] tracking-[0.06em] uppercase leading-none">
-              MỚI
+              LIVE DB
             </span>
             <span className="font-sans font-medium text-[#465754] group-hover:text-[#0a1413]">
               Hệ thống CoT 3 bước &amp; RAG Vector đã sẵn sàng
@@ -420,28 +277,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
             )}
           </div>
 
-          {/* 5-Avatar Scholar Trust Stack */}
-          <div className="mt-7 flex flex-col sm:flex-row items-center gap-3 text-xs sm:text-[13px] font-sans text-[#556361]">
-            <div className="flex items-center -space-x-2" aria-hidden="true">
-              {[
-                '/avatars/user-default.jpg',
-                '/avatars/scholar-2.jpg',
-                '/avatars/scholar-3.jpg',
-                '/avatars/scholar-4.jpg',
-                '/avatars/scholar-testimonial.jpg',
-              ].map((src) => (
-                <img
-                  key={src}
-                  src={src}
-                  alt=""
-                  className="w-7 h-7 rounded-full object-cover object-top ring-2 ring-[#f7faf9] bg-[#eff5f3]"
-                />
-              ))}
-            </div>
-            <span>Tin dùng bởi hơn 1,280+ học viên thạc sĩ &amp; nghiên cứu sinh</span>
+          {/* 100% Real Server / User Database Status Line (Zero Mock Counters) */}
+          <div className="mt-7 flex flex-col sm:flex-row items-center gap-2.5 text-xs sm:text-[13px] font-sans text-[#556361] px-4 py-2 rounded-full bg-white/80 border border-[rgba(10,20,19,0.08)]">
+            <span
+              className="w-2 h-2 rounded-full bg-[#6ee7c8] border border-[#0b6e5e] shrink-0"
+              aria-hidden="true"
+            />
+            {user ? (
+              <span>
+                Đang đăng nhập <strong className="text-[#0a1413] font-semibold">{user.name}</strong> ·{' '}
+                {documents.length} tài liệu RAG · {sessions.length} phiên phản biện (
+                {scorecards.length} bảng điểm đã lưu)
+              </span>
+            ) : stats ? (
+              <span>
+                Dữ liệu thực trên máy chủ: {stats.total_users.toLocaleString('vi-VN')} tài khoản ·{' '}
+                {stats.total_documents.toLocaleString('vi-VN')} tài liệu RAG (
+                {stats.total_chunks.toLocaleString('vi-VN')} phân đoạn) ·{' '}
+                {stats.total_sessions.toLocaleString('vi-VN')} phiên phản biện
+              </span>
+            ) : (
+              <span>Đang kết nối dữ liệu thực tế từ FastAPI SQLite &amp; Vector DB...</span>
+            )}
           </div>
 
-          {/* INTERACTIVE APP PREVIEW WINDOW (fading gracefully into #f7faf9) */}
+          {/* INTERACTIVE WORKSPACE PREVIEW WINDOW */}
           <div className="relative w-full max-w-[1140px] mt-12 sm:mt-16 text-left">
             {/* Soft Mint Halo behind App Window */}
             <div
@@ -455,11 +315,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <div
               role="group"
-              aria-label="Mô phỏng giao diện phòng phản biện VivaArena"
+              aria-label="Không gian tổng quan và cấu hình hệ thống VivaArena"
               className="relative rounded-[20px] bg-white border border-[rgba(10,20,19,0.12)] shadow-[0_30px_80px_-24px_rgba(10,20,19,0.16),0_0_90px_-10px_rgba(110,231,200,0.22)] overflow-hidden flex flex-col md:flex-row"
             >
               {/* Sidebar */}
-              <aside className="w-full md:w-[238px] shrink-0 bg-[#eff5f3] border-b md:border-b-0 md:border-r border-[rgba(10,20,19,0.08)] p-3 sm:p-4 flex flex-col justify-between gap-4">
+              <aside className="w-full md:w-[244px] shrink-0 bg-[#eff5f3] border-b md:border-b-0 md:border-r border-[rgba(10,20,19,0.08)] p-3 sm:p-4 flex flex-col justify-between gap-4">
                 <div>
                   {/* Window Traffic Lights */}
                   <div className="flex items-center gap-2 px-2 py-1 mb-3" aria-hidden="true">
@@ -476,7 +336,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-[13px] font-sans text-[#465754] hover:bg-white/70 hover:text-[#0a1413] transition-colors text-left cursor-pointer border-none bg-transparent"
                     >
                       <Plus className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
-                      <span>Phiên mới</span>
+                      <span>Tạo phiên phản biện</span>
                     </button>
                     <button
                       type="button"
@@ -484,7 +344,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-[13px] font-sans text-[#465754] hover:bg-white/70 hover:text-[#0a1413] transition-colors text-left cursor-pointer border-none bg-transparent"
                     >
                       <Activity className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
-                      <span>3 Cấp giám khảo</span>
+                      <span>3 Cấp giám khảo AI</span>
                     </button>
                     <button
                       type="button"
@@ -492,29 +352,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-[13px] font-sans text-[#465754] hover:bg-white/70 hover:text-[#0a1413] transition-colors text-left cursor-pointer border-none bg-transparent"
                     >
                       <Layers className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
-                      <span>Chỉ mục Vector RAG</span>
+                      <span>Kho đề án &amp; Điểm số</span>
                     </button>
                   </div>
 
-                  {/* Interactive Tasks / Simulation Switcher */}
+                  {/* Tab Group Heading */}
                   <div className="px-2 pb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-[#556361]">
-                    KỊCH BẢN MÔ PHỎNG
+                    {user ? 'TỔNG QUAN & KIẾN TRÚC' : 'KIẾN TRÚC HỆ THỐNG'}
                   </div>
                   <div
                     role="tablist"
-                    aria-label="Chọn kịch bản phản biện mẫu"
+                    aria-label="Chọn góc nhìn tổng quan hệ thống"
                     className="flex md:flex-col gap-1 overflow-x-auto pb-1 md:pb-0"
                   >
-                    {SIMULATION_REPORTS.map((item, idx) => {
-                      const isActive = idx === activeReportIdx;
-                      const showUnreadDot = item.isLive && !seenTabs.has(idx);
+                    {previewTabs.map((item) => {
+                      const isActive = activePreviewTab === item.id;
                       return (
                         <button
                           key={item.id}
                           type="button"
                           role="tab"
                           aria-selected={isActive}
-                          onClick={() => handleSelectReport(idx)}
+                          onClick={() => setActivePreviewTab(item.id)}
                           className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12.5px] font-sans whitespace-nowrap md:whitespace-normal text-left transition-all cursor-pointer border ${
                             isActive
                               ? 'bg-white text-[#0a1413] font-medium border-[rgba(10,20,19,0.1)] shadow-2xs'
@@ -529,13 +388,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             }`}
                             aria-hidden="true"
                           />
-                          <span className="flex-1 truncate">{item.tabLabel}</span>
-                          {showUnreadDot && (
-                            <span
-                              className="w-1.5 h-1.5 rounded-full bg-[#0b6e5e]"
-                              aria-label="Mới"
-                            />
-                          )}
+                          <span className="flex-1 truncate">{item.label}</span>
                         </button>
                       );
                     })}
@@ -544,111 +397,381 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                 {/* Sidebar User Footer */}
                 <div className="hidden md:flex items-center gap-2.5 px-2 pt-3 border-t border-[rgba(10,20,19,0.08)]">
-                  <img
-                    src={user?.avatar || '/avatars/user-default.jpg'}
-                    alt=""
-                    className="w-6 h-6 rounded-full object-cover object-top bg-white shrink-0"
-                  />
-                  <span className="font-sans text-xs font-medium text-[#0a1413] truncate">
-                    {user?.name || 'Nghiên cứu sinh'}
-                  </span>
+                  {user ? (
+                    <>
+                      <img
+                        src={user.avatar || '/avatars/user-default.jpg'}
+                        alt=""
+                        className="w-6 h-6 rounded-full object-cover object-top bg-white shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <span className="font-sans text-xs font-medium text-[#0a1413] block truncate">
+                          {user.name}
+                        </span>
+                        <span className="font-mono text-[10px] text-[#0b6e5e] block truncate">
+                          {user.role}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onOpenAuth}
+                      className="flex items-center gap-2 text-left text-xs font-sans text-[#0b6e5e] hover:underline bg-transparent border-none p-0 cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
+                      <span>Đăng nhập để lưu hồ sơ</span>
+                    </button>
+                  )}
                 </div>
               </aside>
 
               {/* Main Preview Canvas */}
               <div className="flex-1 min-w-0 p-5 sm:p-7 bg-white flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[rgba(10,20,19,0.08)]">
-                  <span className="font-sans font-medium text-sm text-[#0a1413]">
-                    {report.tabLabel}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[11px] font-medium ${
-                      report.done
-                        ? 'bg-[#eff5f3] text-[#465754] border border-[rgba(10,20,19,0.08)]'
-                        : 'bg-[rgba(110,231,200,0.22)] text-[#064037] border border-[rgba(11,110,94,0.2)]'
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        report.done ? 'bg-[#556361]' : 'bg-[#0b6e5e] anim-live-pulse'
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span>{report.status}</span>
-                  </span>
-                </div>
+                {activePreviewTab === 'live' && user && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[rgba(10,20,19,0.08)]">
+                      <span className="font-sans font-medium text-sm text-[#0a1413]">
+                        Hồ sơ thực tế · {user.email}
+                      </span>
+                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[11px] font-medium bg-[rgba(110,231,200,0.22)] text-[#064037] border border-[rgba(11,110,94,0.2)]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0b6e5e]" aria-hidden="true" />
+                        <span>Dữ liệu đồng bộ SQLite</span>
+                      </span>
+                    </div>
 
-                <div className="font-sans font-semibold text-lg sm:text-xl tracking-[-0.02em] text-[#0a1413]">
-                  {report.heading}
-                </div>
+                    <div className="font-sans font-semibold text-lg sm:text-xl tracking-[-0.02em] text-[#0a1413]">
+                      Tổng quan tiến độ bảo vệ đề tài của {user.name}
+                    </div>
 
-                {/* 4 KPI Tiles */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {report.kpis.map((k, idx) => {
-                    const currentVal = animatedKpis[idx] ?? k.target;
-                    return (
-                      <div
-                        key={k.label}
-                        className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1"
-                      >
-                        <span className="font-sans text-xs text-[#556361]">{k.label}</span>
+                    {/* 4 REAL KPI Tiles */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Tài liệu RAG</span>
                         <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
-                          {currentVal.toFixed(k.decimals)}
-                          {k.suffix}
+                          {documents.length} tệp
                         </span>
-                        <span
-                          className={`font-mono text-[11px] font-medium ${
-                            k.bad ? 'text-[#be123c]' : 'text-[#0b6e5e]'
-                          }`}
-                        >
-                          {k.delta}
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          {userTotalChunks} phân đoạn
                         </span>
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* Sparkline Chart */}
-                <div className="p-4 pb-2 rounded-xl border border-[rgba(10,20,19,0.08)] bg-gradient-to-b from-[rgba(110,231,200,0.09)] to-transparent">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-[#556361] mb-2">
-                    <span>{report.chartLabel}</span>
-                    <span className="font-mono font-medium text-[#0a1413]">{report.chartTotal}</span>
-                  </div>
-                  <svg
-                    viewBox="0 0 776 130"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                    className={`block w-full h-[108px] sm:h-[124px] mint-spark ${
-                      sparkReady ? 'draw' : ''
-                    }`}
-                  >
-                    <defs>
-                      <linearGradient id="home-spark-fill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6ee7c8" stopOpacity="0.34" />
-                        <stop offset="100%" stopColor="#6ee7c8" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d={sparkAreaPath} fill="url(#home-spark-fill)" />
-                    <path
-                      d={sparkLinePath}
-                      fill="none"
-                      stroke="#0b6e5e"
-                      strokeWidth="2"
-                      vectorEffect="non-scaling-stroke"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Phiên phản biện</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
+                          {sessions.length} phiên
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          {userCompletedCount} đã hoàn thành
+                        </span>
+                      </div>
 
-                {/* Key Finding Strip */}
-                <div className="p-3.5 rounded-xl bg-[rgba(110,231,200,0.14)] border border-[rgba(11,110,94,0.22)]">
-                  <span className="font-mono font-semibold text-[10px] tracking-[0.08em] uppercase text-[#085448] block mb-1">
-                    KEY FINDING · ĐỐI SOÁT RAG
-                  </span>
-                  <p className="font-sans text-[13px] leading-relaxed text-[#0a1413]">
-                    {report.finding}
-                  </p>
-                </div>
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Bảng điểm CoT</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
+                          {scorecards.length} báo cáo
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0369a1]">
+                          Lưu cơ sở dữ liệu
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Điểm trung bình</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
+                          {userAvgScore !== null ? `${userAvgScore.toFixed(1)}/100` : '--'}
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          {userAvgScore !== null ? 'Rubric 4 trục' : 'Chưa chấm điểm'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Real Data Visualization Panel */}
+                    <div className="p-4 rounded-xl border border-[rgba(10,20,19,0.08)] bg-[#f7faf9]">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-[#556361] mb-2.5">
+                        <span>
+                          {chronologicalScorecards.length >= 2
+                            ? `Biến thiên điểm tổng hợp qua ${chronologicalScorecards.length} phiên gần nhất`
+                            : scorecards.length === 1
+                            ? `Chi tiết 4 trục phiên #${scorecards[0].session_id.slice(0, 8).toUpperCase()}`
+                            : 'Trạng thái ghi nhận dữ liệu thực tế'}
+                        </span>
+                        <span className="font-mono font-medium text-[#0a1413]">
+                          {userAvgScore !== null ? `TB: ${userAvgScore.toFixed(1)} điểm` : '0 bảng điểm'}
+                        </span>
+                      </div>
+
+                      {chronologicalScorecards.length >= 2 ? (
+                        <svg viewBox="0 0 776 110" className="block w-full h-[96px]" aria-hidden="true">
+                          <polyline
+                            fill="none"
+                            stroke="#0b6e5e"
+                            strokeWidth="2.5"
+                            points={chronologicalScorecards
+                              .map((sc, i) => {
+                                const x = Math.round(
+                                  24 + (i / (chronologicalScorecards.length - 1)) * 728
+                                );
+                                const y = Math.round(92 - (Math.max(0, Math.min(100, sc.overall_score)) / 100) * 74);
+                                return `${x},${y}`;
+                              })
+                              .join(' ')}
+                          />
+                          {chronologicalScorecards.map((sc, i) => {
+                            const x = Math.round(
+                              24 + (i / (chronologicalScorecards.length - 1)) * 728
+                            );
+                            const y = Math.round(92 - (Math.max(0, Math.min(100, sc.overall_score)) / 100) * 74);
+                            return <circle key={sc.id} cx={x} cy={y} r="4.5" fill="#085448" stroke="#6ee7c8" strokeWidth="2" />;
+                          })}
+                        </svg>
+                      ) : scorecards.length === 1 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
+                          {[
+                            { name: 'Logic học thuật', val: scorecards[0].logic_accuracy_score },
+                            { name: 'Kỹ năng tranh biện', val: scorecards[0].argumentation_score },
+                            { name: 'Bản lĩnh phản biện', val: scorecards[0].composure_score },
+                            { name: 'Độ khúc chiết', val: scorecards[0].clarity_score },
+                          ].map((ax) => (
+                            <div key={ax.name} className="p-2.5 rounded-lg bg-white border border-[rgba(10,20,19,0.08)]">
+                              <span className="text-[#556361] block text-[11px]">{ax.name}</span>
+                              <strong className="font-mono text-sm text-[#0b6e5e]">{ax.val.toFixed(0)}/100</strong>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs font-sans text-[#465754] leading-relaxed">
+                          Tài khoản mới khởi tạo sạch sẽ. Hãy tải lên tài liệu nghiên cứu và hoàn thành ít nhất một phiên phản biện để hiển thị biểu đồ điểm số thật của riêng bạn.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[rgba(110,231,200,0.14)] border border-[rgba(11,110,94,0.22)]">
+                      <span className="font-mono font-semibold text-[10px] tracking-[0.08em] uppercase text-[#085448] block mb-1">
+                        GHI NHẬN MỚI NHẤT TỪ CƠ SỞ DỮ LIỆU
+                      </span>
+                      <p className="font-sans text-[13px] leading-relaxed text-[#0a1413]">
+                        {scorecards[0]?.overall_verdict ||
+                          (sessions[0]
+                            ? `Phiên gần nhất "${sessions[0].title}" đang ở lượt ${sessions[0].current_turn}/${sessions[0].max_turns}.`
+                            : 'Chưa có phiên nào được ghi nhận cho tài khoản này.')}
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {activePreviewTab === 'pipeline' && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[rgba(10,20,19,0.08)]">
+                      <span className="font-sans font-medium text-sm text-[#0a1413]">
+                        Quy trình RAG &amp; CoT
+                      </span>
+                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[11px] font-medium bg-[#eff5f3] text-[#085448] border border-[rgba(11,110,94,0.2)]">
+                        <Database className="w-3 h-3" strokeWidth={2} aria-hidden="true" />
+                        <span>Kiến trúc vận hành</span>
+                      </span>
+                    </div>
+
+                    <div className="font-sans font-semibold text-lg sm:text-xl tracking-[-0.02em] text-[#0a1413]">
+                      Chuỗi xử lý tài liệu RAG &amp; suy luận CoT 3 bước
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Chuỗi suy luận</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413]">
+                          3 Bước
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          Kiểm chứng · Lỗ hổng
+                        </span>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Định dạng RAG</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413]">
+                          3 Loại
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          PDF · DOCX · TXT
+                        </span>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Kho tài liệu thực</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
+                          {stats ? stats.total_documents.toLocaleString('vi-VN') : 0} Tệp
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0369a1]">
+                          {stats ? stats.total_chunks.toLocaleString('vi-VN') : 0} phân đoạn Vector
+                        </span>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1">
+                        <span className="font-sans text-xs text-[#556361]">Phiên trên máy chủ</span>
+                        <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0a1413] tabular-nums">
+                          {stats ? stats.total_sessions.toLocaleString('vi-VN') : 0} Phiên
+                        </span>
+                        <span className="font-mono text-[11px] font-medium text-[#0b6e5e]">
+                          {stats ? stats.total_answered_turns.toLocaleString('vi-VN') : 0} lượt đối đáp
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-[rgba(10,20,19,0.08)] bg-[#f7faf9] grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        {
+                          step: 'BƯỚC 01 · FACT-CHECK',
+                          title: 'Đối soát Ground Truth',
+                          desc: 'Truy xuất đoạn văn tương đồng từ tệp đề án của bạn.',
+                        },
+                        {
+                          step: 'BƯỚC 02 · LOGIC AUDIT',
+                          title: 'Truy vết lỗ hổng',
+                          desc: 'Phát hiện suy diễn thiếu cơ sở hoặc mâu thuẫn số liệu.',
+                        },
+                        {
+                          step: 'BƯỚC 03 · REBUTTAL',
+                          title: 'Sinh câu hỏi Socratic',
+                          desc: 'Đặt câu hỏi phản bác xoáy thẳng vào phần cần giải trình.',
+                        },
+                      ].map((item) => (
+                        <div key={item.step} className="p-3 rounded-lg bg-white border border-[rgba(10,20,19,0.08)]">
+                          <span className="font-mono text-[10px] font-semibold text-[#0b6e5e] block mb-1">
+                            {item.step}
+                          </span>
+                          <strong className="font-sans text-xs font-semibold text-[#0a1413] block mb-1">
+                            {item.title}
+                          </strong>
+                          <span className="font-sans text-[11px] text-[#465754] leading-snug block">
+                            {item.desc}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[rgba(110,231,200,0.14)] border border-[rgba(11,110,94,0.22)]">
+                      <span className="font-mono font-semibold text-[10px] tracking-[0.08em] uppercase text-[#085448] block mb-1">
+                        NGUYÊN TẮC ĐỐI SOÁT DỮ LIỆU THẬT
+                      </span>
+                      <p className="font-sans text-[13px] leading-relaxed text-[#0a1413]">
+                        Mỗi tài liệu được tách đoạn riêng theo tài khoản sở hữu trong ChromaDB và gắn liền với phiên chất vấn thực tế của bạn.
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {activePreviewTab === 'personas' && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[rgba(10,20,19,0.08)]">
+                      <span className="font-sans font-medium text-sm text-[#0a1413]">
+                        3 Cấp Giám Khảo
+                      </span>
+                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[11px] font-medium bg-[#eff5f3] text-[#085448] border border-[rgba(11,110,94,0.2)]">
+                        <span>3 Persona chuyên trách</span>
+                      </span>
+                    </div>
+
+                    <div className="font-sans font-semibold text-lg sm:text-xl tracking-[-0.02em] text-[#0a1413]">
+                      Cấu hình Hội đồng AI theo cường độ phản biện
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {(['feynman', 'academic_reviewer', 'strict_council'] as CouncilPersona[]).map((pId) => {
+                        const info = COUNCIL_BADGES[pId];
+                        return (
+                          <div
+                            key={pId}
+                            className="p-4 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col justify-between gap-2"
+                          >
+                            <div>
+                              <span className="font-mono text-[10px] font-semibold text-[#0b6e5e] block mb-1">
+                                {info.code}
+                              </span>
+                              <strong className="font-sans text-sm font-semibold text-[#0a1413] block">
+                                {info.name}
+                              </strong>
+                              <p className="font-sans text-xs text-[#465754] mt-1.5 leading-relaxed">
+                                {info.tagline}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handlePersonaPick(pId)}
+                              className="inline-flex items-center gap-1 font-mono text-[11px] font-medium text-[#0b6e5e] hover:underline bg-transparent border-none p-0 cursor-pointer w-fit"
+                            >
+                              <span>Chọn giám khảo này</span>
+                              <ArrowRight className="w-3 h-3" strokeWidth={2} aria-hidden="true" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[rgba(110,231,200,0.14)] border border-[rgba(11,110,94,0.22)]">
+                      <span className="font-mono font-semibold text-[10px] tracking-[0.08em] uppercase text-[#085448] block mb-1">
+                        TƯƠNG TÁC GIỌNG NÓI &amp; VĂN BẢN THỰC
+                      </span>
+                      <p className="font-sans text-[13px] leading-relaxed text-[#0a1413]">
+                        Chọn giữa 3, 5 hoặc 10 lượt chất vấn kèm luồng giọng nói Edge-TTS / D-ID WebRTC hoặc gõ phản biện trực tiếp ngay tại phòng thi.
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {activePreviewTab === 'rubric' && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[rgba(10,20,19,0.08)]">
+                      <span className="font-sans font-medium text-sm text-[#0a1413]">
+                        Rubric 4 Trục PREP
+                      </span>
+                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[11px] font-medium bg-[#eff5f3] text-[#085448] border border-[rgba(11,110,94,0.2)]">
+                        <span>Trọng số chấm điểm thực tế</span>
+                      </span>
+                    </div>
+
+                    <div className="font-sans font-semibold text-lg sm:text-xl tracking-[-0.02em] text-[#0a1413]">
+                      Công thức thẩm định 4 trục học thuật sau bảo vệ
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {RUBRIC_WEIGHTS.map((item) => (
+                        <div
+                          key={item.label}
+                          className="p-3.5 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-1"
+                        >
+                          <span className="font-sans text-xs text-[#556361]">{item.label}</span>
+                          <span className="font-sans font-semibold text-xl sm:text-2xl tracking-[-0.025em] text-[#0b6e5e]">
+                            {item.weight}%
+                          </span>
+                          <span className="font-mono text-[11px] font-medium text-[#465754]">
+                            {item.detail}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-[rgba(10,20,19,0.08)] bg-[#f7faf9] space-y-2.5">
+                      <div className="flex items-center justify-between text-xs font-sans text-[#556361]">
+                        <span>Phân bổ trọng số tổng hợp 100%</span>
+                        <span className="font-mono text-[#0a1413]">35% + 30% + 20% + 15%</span>
+                      </div>
+                      <div className="w-full h-3 rounded-full overflow-hidden flex bg-[#dce7e4]">
+                        <div className="h-full bg-[#0b6e5e]" style={{ width: '35%' }} title="Logic Học Thuật 35%" />
+                        <div className="h-full bg-[#0369a1]" style={{ width: '30%' }} title="Kỹ Năng Tranh Biện 30%" />
+                        <div className="h-full bg-[#334155]" style={{ width: '20%' }} title="Bản Lĩnh Phản Biện 20%" />
+                        <div className="h-full bg-[#6ee7c8]" style={{ width: '15%' }} title="Độ Khúc Chiết 15%" />
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[rgba(110,231,200,0.14)] border border-[rgba(11,110,94,0.22)]">
+                      <span className="font-mono font-semibold text-[10px] tracking-[0.08em] uppercase text-[#085448] block mb-1">
+                        GỢI Ý CẢI THIỆN CHUẨN PREP
+                      </span>
+                      <p className="font-sans text-[13px] leading-relaxed text-[#0a1413]">
+                        Bảng điểm chỉ được tạo sau khi bạn trả lời tối thiểu 1 câu hỏi của Hội đồng, kèm phần gợi ý trả lời tối ưu hóa cho từng lượt đã thi.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -664,19 +787,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* ==================== 2. UNIVERSITY & INSTITUTION STRIP ==================== */}
-      <section className="mint-wrap pt-12 pb-20 sm:pb-24 text-center" aria-label="Cơ sở đào tạo tin dùng">
+      {/* ==================== 2. ACADEMIC DISCIPLINES STRIP ==================== */}
+      <section className="mint-wrap pt-12 pb-20 sm:pb-24 text-center" aria-label="Lĩnh vực nghiên cứu hỗ trợ">
         <p className="mint-eyebrow text-[#556361] mb-6">
-          ĐƯỢC TIN DÙNG BỞI HỌC VIÊN &amp; NGHIÊN CỨU SINH TỪ
+          PHÙ HỢP CHO HỘI ĐỒNG BẢO VỆ CÁC CHUYÊN NGÀNH
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 sm:gap-x-14">
           {[
-            { name: 'ĐH Bách Khoa', Icon: Cpu },
-            { name: 'KHTN TP.HCM', Icon: FlaskConical },
-            { name: 'Kinh Tế Quốc Dân', Icon: Landmark },
-            { name: 'ĐH Ngoại Thương', Icon: Building2 },
-            { name: 'ĐH Y Dược', Icon: BookOpen },
-            { name: 'RMIT Việt Nam', Icon: GraduationCap },
+            { name: 'Khoa học Máy tính & AI', Icon: Cpu },
+            { name: 'Kỹ thuật & Công nghệ', Icon: FlaskConical },
+            { name: 'Kinh tế & Tài chính', Icon: Landmark },
+            { name: 'Quản trị & Kinh doanh', Icon: Briefcase },
+            { name: 'Y sinh & Khoa học', Icon: BookOpen },
+            { name: 'Nghiên cứu Đa ngành', Icon: Layers },
           ].map(({ name, Icon }) => (
             <div
               key={name}
@@ -701,7 +824,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </h2>
             </div>
             <p className="font-sans text-sm sm:text-base text-[#465754] max-w-sm leading-relaxed">
-              Kết nối trực tiếp báo cáo PDF hoặc DOCX của bạn. Hội đồng AI ghi nhớ cấu trúc luận điểm và xoáy sâu vào phần cốt lõi.
+              Kết nối trực tiếp báo cáo PDF, DOCX hoặc TXT của bạn. Hội đồng AI ghi nhớ cấu trúc luận điểm và xoáy sâu vào phần cốt lõi.
             </p>
           </div>
 
@@ -718,7 +841,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   Đối soát Ground Truth RAG
                 </h3>
                 <p className="mt-2.5 font-sans text-sm text-[#465754] leading-relaxed">
-                  Tài liệu được phân đoạn ngữ nghĩa tự động. Mọi câu trả lời đều được đối chiếu với bảng số liệu và giả thuyết gốc.
+                  Tài liệu được phân đoạn ngữ nghĩa tự động theo từng tài khoản. Mọi câu trả lời đều được đối chiếu với nội dung gốc.
                 </p>
               </div>
             </article>
@@ -752,7 +875,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   Giọng nói WebRTC &amp; Chuẩn PREP
                 </h3>
                 <p className="mt-2.5 font-sans text-sm text-[#465754] leading-relaxed">
-                  Tương tác giọng nói song công cùng giám khảo D-ID, đo tốc độ phản xạ WPM và nhận bản gợi ý trả lời tối ưu chuẩn PREP.
+                  Tương tác giọng nói cùng giám khảo AI, đo tốc độ phản xạ thực tế và nhận bản gợi ý trả lời tối ưu chuẩn PREP.
                 </p>
               </div>
             </article>
@@ -776,9 +899,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <div className="flex flex-col gap-4">
-            {/* BENTO ROW 1: Examiner ID Showcase + Capability Tiles */}
+            {/* BENTO ROW 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Wide Card: Specialist Examiners + Tilted Studio ID Card */}
+              {/* Wide Card: Specialist Examiners */}
               <div className="lg:col-span-8 mint-card mint-card-hover p-6 sm:p-8 bg-gradient-to-br from-white via-white to-[#eff5f3] flex flex-col md:flex-row items-center gap-8 group">
                 <div className="flex-1 flex flex-col gap-4">
                   <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361]">
@@ -825,7 +948,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
                 </div>
 
-                {/* Tilted Studio ID Badge matching bs-mint-noir-saas-site */}
+                {/* Tilted Studio ID Badge */}
                 <div className="w-[228px] shrink-0 flex items-center justify-center py-2">
                   <div className="w-[216px] p-3 rounded-[18px] bg-[#f4f7f6] border border-[rgba(10,20,19,0.12)] shadow-[0_24px_48px_-14px_rgba(10,20,19,0.18)] rotate-[3.5deg] group-hover:rotate-[1deg] group-hover:-translate-y-1 transition-transform duration-500">
                     <img
@@ -847,7 +970,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
 
-              {/* Capability Tiles Card (4x2 Grid) */}
+              {/* Capability Tiles Card */}
               <div className="lg:col-span-4 mint-card mint-card-hover p-6 sm:p-7 flex flex-col justify-between gap-4">
                 <div>
                   <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361]">
@@ -885,7 +1008,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
 
-            {/* BENTO ROW 2: Multi-Model Picker + Interactive Approval + Live Sequence */}
+            {/* BENTO ROW 2 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Tile 3: Multi-Model Selector */}
               <div className="mint-card mint-card-hover p-6 sm:p-7 flex flex-col justify-between gap-4">
@@ -922,11 +1045,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <p className="font-mono text-[11px] text-[#556361]">{MODEL_NOTES[selectedModel]}</p>
               </div>
 
-              {/* Tile 4: Interactive Approval Card */}
+              {/* Tile 4: Interactive Scope Guard */}
               <div className="mint-card mint-card-hover p-6 sm:p-7 flex flex-col justify-between gap-4">
                 <div>
                   <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361]">
-                    KIỂM SOÁT HỌC THUẬT
+                    KIỂM SOÁT PHẠM VI
                   </span>
                   <h3 className="mt-2 font-sans font-semibold text-xl tracking-[-0.015em] text-[#0a1413]">
                     Bạn chốt phạm vi. AI chất vấn.
@@ -946,7 +1069,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     aria-hidden="true"
                   />
                   <span className="flex-1 font-sans text-xs sm:text-[13px] font-medium text-[#0a1413]">
-                    {isApproved ? 'Đã khóa 5 lượt phản biện Chương 3' : 'Khóa 5 lượt xoáy Chương 3?'}
+                    {isApproved ? 'Đã bật đối soát tài liệu RAG' : 'Giới hạn câu hỏi theo tệp đề án?'}
                   </span>
                   <button
                     type="button"
@@ -959,22 +1082,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     }`}
                   >
                     {isApproved && <Check className="w-3.5 h-3.5" strokeWidth={2.4} aria-hidden="true" />}
-                    <span>{isApproved ? 'Đã duyệt' : 'Phê duyệt'}</span>
+                    <span>{isApproved ? 'Đã khóa' : 'Kích hoạt'}</span>
                   </button>
                 </div>
 
                 <p className="font-mono text-[11px] text-[#556361]">
                   {isApproved
-                    ? 'Sẵn sàng khởi chạy phiên chất vấn theo đề cương đã duyệt.'
-                    : 'Giới hạn ngữ cảnh RAG trước khi kích hoạt hội đồng.'}
+                    ? 'Hội đồng bám sát đúng ngữ cảnh từ tài liệu bạn đã tải lên.'
+                    : 'Liên kết tệp PDF/DOCX hoặc tự nhập tóm tắt trước khi thi.'}
                 </p>
               </div>
 
               {/* Tile 5: Animated Pipeline Timeline */}
-              <div
-                ref={pipelineRef}
-                className="mint-card mint-card-hover p-6 sm:p-7 flex flex-col justify-between gap-4"
-              >
+              <div className="mint-card mint-card-hover p-6 sm:p-7 flex flex-col justify-between gap-4">
                 <div>
                   <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361]">
                     QUY TRÌNH TỰ ĐỘNG
@@ -985,13 +1105,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {PIPELINE_STEPS.map((step, i) => {
+                  {PIPELINE_STEPS.map((item, i) => {
                     const isLit = i < pipelineIdx;
                     const isCurrent = i === pipelineIdx - 1;
                     return (
-                      <div key={step.time} className="flex items-center gap-3">
-                        <span className="font-mono text-xs text-[#556361] w-11 shrink-0">
-                          {step.time}
+                      <div key={item.step} className="flex items-center gap-3">
+                        <span className="font-mono text-xs text-[#556361] w-8 shrink-0">
+                          {item.step}
                         </span>
                         <span
                           className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
@@ -1004,7 +1124,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             isLit ? 'text-[#0a1413] font-medium' : 'text-[#556361]'
                           }`}
                         >
-                          {step.label}
+                          {item.label}
                         </span>
                       </div>
                     );
@@ -1016,7 +1136,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* ==================== 5. TESTIMONIAL & PROOF STATS ==================== */}
+      {/* ==================== 5. PEDAGOGICAL STATEMENT & REAL DATABASE STATS ==================== */}
       <section className="border-t border-[rgba(10,20,19,0.08)] py-24 sm:py-32">
         <div className="mint-wrap flex flex-col items-center text-center gap-8">
           <div
@@ -1027,59 +1147,62 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <blockquote className="max-w-4xl font-serif text-[28px] sm:text-[38px] lg:text-[44px] leading-[1.24] tracking-[-0.01em] text-[#0a1413]">
-            Mình từng lúng túng trước các câu hỏi ngoại lệ của hội đồng. Sau ba buổi luyện Stress-Test với VivaArena, điểm bảo vệ thử tăng từ{' '}
-            <span className="mint-serif">74 lên 92/100</span> nhờ trả lời đúng trọng tâm số liệu ngay 15 giây đầu.
+            Bản lĩnh bảo vệ đề tài không đến từ việc đọc thuộc kịch bản, mà từ khả năng giữ vững luận điểm và trích dẫn đúng số liệu khi bị{' '}
+            <span className="mint-serif">phản bác trực diện</span>.
           </blockquote>
 
           <div className="flex items-center gap-3.5 text-left">
-            <img
-              src="/avatars/scholar-testimonial.jpg"
-              alt="Chân dung NCV. Minh Anh"
-              className="w-11 h-11 rounded-full object-cover object-top border border-[rgba(10,20,19,0.1)] bg-[#eff5f3]"
-            />
+            <span className="w-11 h-11 rounded-full bg-[rgba(110,231,200,0.25)] border border-[rgba(11,110,94,0.24)] text-[#085448] flex items-center justify-center shrink-0">
+              <BrainCircuit className="w-5 h-5" strokeWidth={1.9} aria-hidden="true" />
+            </span>
             <div>
-              <b className="block font-sans font-semibold text-sm text-[#0a1413]">NCV. Minh Anh</b>
+              <b className="block font-sans font-semibold text-sm text-[#0a1413]">
+                Phân hệ Chất vấn Socratic · VivaArena Core
+              </b>
               <small className="block font-sans text-xs text-[#556361] mt-0.5">
-                Học viên Cao học Khoa học Dữ liệu · ĐH Bách Khoa TP.HCM
+                Chuỗi suy luận CoT 3 bước · Đối soát RAG Vector &amp; Bảng điểm 4 trục PREP
               </small>
             </div>
           </div>
 
-          {/* 4 Count-Up Proof Metrics */}
-          <div
-            ref={proofRef}
-            className="grid grid-cols-2 md:grid-cols-4 gap-y-8 pt-8 mt-2 w-full max-w-4xl border-t border-[rgba(10,20,19,0.08)]"
-          >
+          {/* 4 100% REAL Server Metrics from GET /api/v1/stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 pt-8 mt-2 w-full max-w-4xl border-t border-[rgba(10,20,19,0.08)]">
             <div className="px-4 flex flex-col items-center gap-1">
               <b className="font-sans font-semibold text-3xl sm:text-4xl tracking-[-0.03em] text-[#0a1413] tabular-nums">
-                {proofValues[0].toFixed(1)}%
+                {stats ? stats.total_users.toLocaleString('vi-VN') : '0'}
               </b>
               <span className="font-sans text-xs sm:text-[13px] text-[#556361]">
-                Vững vàng sau 2 phiên
+                Tài khoản đã đăng ký
               </span>
             </div>
             <div className="px-4 md:border-l border-[rgba(10,20,19,0.08)] flex flex-col items-center gap-1">
               <b className="font-sans font-semibold text-3xl sm:text-4xl tracking-[-0.03em] text-[#0a1413] tabular-nums">
-                {proofValues[1].toLocaleString('en-US')}+
+                {stats ? stats.total_documents.toLocaleString('vi-VN') : '0'}
               </b>
               <span className="font-sans text-xs sm:text-[13px] text-[#556361]">
-                Lượt chất vấn CoT
+                Tài liệu RAG ({stats ? stats.total_chunks.toLocaleString('vi-VN') : 0} đoạn)
               </span>
             </div>
             <div className="px-4 md:border-l border-[rgba(10,20,19,0.08)] flex flex-col items-center gap-1">
               <b className="font-sans font-semibold text-3xl sm:text-4xl tracking-[-0.03em] text-[#0a1413] tabular-nums">
-                −{proofValues[2]}%
+                {stats ? stats.total_sessions.toLocaleString('vi-VN') : '0'}
               </b>
               <span className="font-sans text-xs sm:text-[13px] text-[#556361]">
-                Lỗ hổng lập luận
+                Phiên phản biện ({stats ? stats.completed_sessions.toLocaleString('vi-VN') : 0} hoàn thành)
               </span>
             </div>
             <div className="px-4 md:border-l border-[rgba(10,20,19,0.08)] flex flex-col items-center gap-1">
               <b className="font-sans font-semibold text-3xl sm:text-4xl tracking-[-0.03em] text-[#0a1413] tabular-nums">
-                {proofValues[3]} Trục
+                {stats && stats.average_overall_score !== null
+                  ? `${stats.average_overall_score.toFixed(1)}/100`
+                  : stats
+                  ? stats.total_answered_turns.toLocaleString('vi-VN')
+                  : '0'}
               </b>
               <span className="font-sans text-xs sm:text-[13px] text-[#556361]">
-                Rubric chuẩn hội đồng
+                {stats && stats.average_overall_score !== null
+                  ? 'Điểm trung bình từ SQLite'
+                  : 'Lượt đối đáp CoT đã lưu'}
               </span>
             </div>
           </div>
@@ -1100,13 +1223,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
               }}
             />
 
-            <p className="relative mint-eyebrow">BẮT ĐẦU TRONG 30 GIÂY</p>
+            <p className="relative mint-eyebrow">QUY TRÌNH BẢO VỆ THỰC TẾ</p>
             <h2 className="relative mint-h2 text-[36px] sm:text-[54px] lg:text-[66px] leading-[1.08] tracking-[-0.035em]">
               Giảm áp lực. Làm chủ{' '}
               <span className="mint-serif">hội đồng</span>.
             </h2>
             <p className="relative font-sans text-sm sm:text-base text-[#465754] max-w-md">
-              Tải lên báo cáo đề án và bước vào lượt hỏi đáp thực chiến cùng Hội đồng AI ngay hôm nay.
+              Đăng nhập tài khoản, tải lên báo cáo đề án và bước vào lượt hỏi đáp thực chiến cùng Hội đồng AI.
             </p>
 
             <div className="relative flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -1116,7 +1239,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 className="btn-mint-primary h-12 px-7 text-sm sm:text-[15px] cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
-                <span>Tạo phiên diễn tập miễn phí</span>
+                <span>{user ? 'Tạo phiên phản biện mới' : 'Đăng nhập & Diễn tập'}</span>
               </button>
               <button
                 type="button"

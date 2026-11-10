@@ -22,7 +22,7 @@ class DebateTurn(Base):
     duration_seconds = Column(Integer, default=0)
     
     # AI critique of this turn
-    ground_truth_accuracy = Column(Integer, default=0) # 0-100%
+    ground_truth_accuracy = Column(Integer, nullable=True, default=None) # 0-100% once answered
     logic_flaws = Column(JSON, default=list) # List of detected fallacies / circular reasoning
     critique_comment = Column(Text, nullable=True)
     

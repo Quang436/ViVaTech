@@ -1,49 +1,212 @@
 import type {
+  AcademicRoleKey,
+  AuthResponse,
+  AuthUser,
+  CouncilPersona,
   DebateSession,
+  PlatformStats,
   RebuttalResponse,
   Scorecard,
-  CouncilPersona,
   UploadedDocument,
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
-const DID_AGENT_BASE_URL = 'http://localhost:8000/api/did-agent';
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://127.0.0.1:8000';
+const API_BASE_URL = `${API_ORIGIN}/api/v1`;
+const DID_AGENT_BASE_URL = `${API_ORIGIN}/api/did-agent`;
+const ACCESS_TOKEN_KEY = 'viva_arena_access_token';
+
+type UnauthorizedCallback = () => void;
+let unauthorizedHandler: UnauthorizedCallback | null = null;
+
+function extractErrorMessage(rawText: string, status: number): string {
+  try {
+    const parsed = JSON.parse(rawText) as { detail?: unknown; message?: unknown };
+    if (typeof parsed.detail === 'string' && parsed.detail.trim()) {
+      return parsed.detail;
+    }
+    if (Array.isArray(parsed.detail) && parsed.detail.length > 0) {
+      const first = parsed.detail[0] as { msg?: string };
+      if (first?.msg) return first.msg;
+    }
+    if (typeof parsed.message === 'string' && parsed.message.trim()) {
+      return parsed.message;
+    }
+  } catch {
+    // Plain text fallback below
+  }
+  return rawText.trim() || `Yêu cầu thất bại (${status})`;
+}
+
+export const tokenStorage = {
+  get(): string | null {
+    try {
+      return localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set(token: string, rememberMe: boolean): void {
+    try {
+      if (rememberMe) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, token);
+        sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      } else {
+        sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+      }
+    } catch {
+      // ignore storage quota errors
+    }
+  },
+  clear(): void {
+    try {
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    } catch {
+      // ignore
+    }
+  },
+};
+
+async function apiFetch(
+  url: string,
+  options: RequestInit = {},
+  { requireAuth = true }: { requireAuth?: boolean } = {}
+): Promise<Response> {
+  const headers = new Headers(options.headers || {});
+  const token = tokenStorage.get();
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  } else if (requireAuth) {
+    if (unauthorizedHandler) unauthorizedHandler();
+    throw new Error('Phiên đăng nhập chưa tồn tại. Vui lòng đăng nhập.');
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401 && requireAuth) {
+    tokenStorage.clear();
+    if (unauthorizedHandler) unauthorizedHandler();
+  }
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error(extractErrorMessage(raw, response.status));
+  }
+
+  return response;
+}
 
 export const api = {
+  setUnauthorizedHandler(cb: UnauthorizedCallback | null) {
+    unauthorizedHandler = cb;
+  },
+
+  getToken(): string | null {
+    return tokenStorage.get();
+  },
+
+  clearToken(): void {
+    tokenStorage.clear();
+  },
+
+  // ==========================================
+  // Real Authentication & User Profile
+  // ==========================================
+  async register(params: {
+    full_name: string;
+    email: string;
+    password: string;
+    role: AcademicRoleKey;
+    remember_me: boolean;
+  }): Promise<AuthResponse> {
+    const response = await apiFetch(
+      `${API_BASE_URL}/auth/register`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+      { requireAuth: false }
+    );
+    const data = (await response.json()) as AuthResponse;
+    tokenStorage.set(data.access_token, params.remember_me);
+    return data;
+  },
+
+  async login(params: {
+    email: string;
+    password: string;
+    remember_me: boolean;
+  }): Promise<AuthResponse> {
+    const response = await apiFetch(
+      `${API_BASE_URL}/auth/login`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+      { requireAuth: false }
+    );
+    const data = (await response.json()) as AuthResponse;
+    tokenStorage.set(data.access_token, params.remember_me);
+    return data;
+  },
+
+  async getMe(): Promise<AuthUser> {
+    const response = await apiFetch(`${API_BASE_URL}/auth/me`, { method: 'GET' });
+    return await response.json();
+  },
+
+  async logout(): Promise<void> {
+    try {
+      if (tokenStorage.get()) {
+        await apiFetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' }, { requireAuth: false });
+      }
+    } finally {
+      tokenStorage.clear();
+    }
+  },
+
+  // ==========================================
+  // Public Real System Stats
+  // ==========================================
+  async getPlatformStats(): Promise<PlatformStats> {
+    const response = await apiFetch(`${API_BASE_URL}/stats`, { method: 'GET' }, { requireAuth: false });
+    return await response.json();
+  },
+
   // ==========================================
   // Documents & RAG Knowledge Base (Real Data)
   // ==========================================
   async listDocuments(): Promise<UploadedDocument[]> {
-    const response = await fetch(`${API_BASE_URL}/documents`);
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Không thể tải danh sách tài liệu (${response.status}): ${err}`);
-    }
+    const response = await apiFetch(`${API_BASE_URL}/documents`);
+    return await response.json();
+  },
+
+  async getDocumentDetail(docId: string): Promise<UploadedDocument> {
+    const response = await apiFetch(`${API_BASE_URL}/documents/${docId}`);
     return await response.json();
   },
 
   async uploadDocument(file: File): Promise<UploadedDocument> {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+    const response = await apiFetch(`${API_BASE_URL}/documents/upload`, {
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Tải tài liệu thất bại (${response.status}): ${err}`);
-    }
     return await response.json();
   },
 
   async deleteDocument(docId: string): Promise<{ status: string; document_id: string }> {
-    const response = await fetch(`${API_BASE_URL}/documents/${docId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/documents/${docId}`, {
       method: 'DELETE',
     });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Xóa tài liệu thất bại (${response.status}): ${err}`);
-    }
     return await response.json();
   },
 
@@ -51,11 +214,7 @@ export const api = {
   // Debate Sessions & Turns (Real Data)
   // ==========================================
   async listSessions(): Promise<DebateSession[]> {
-    const response = await fetch(`${API_BASE_URL}/debate/sessions`);
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Không thể tải danh sách phiên (${response.status}): ${err}`);
-    }
+    const response = await apiFetch(`${API_BASE_URL}/debate/sessions`);
     return await response.json();
   },
 
@@ -67,35 +226,23 @@ export const api = {
     topic_summary?: string;
     max_turns: number;
   }): Promise<DebateSession> {
-    const response = await fetch(`${API_BASE_URL}/debate/sessions`, {
+    const response = await apiFetch(`${API_BASE_URL}/debate/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Khởi tạo phiên thất bại (${response.status}): ${err}`);
-    }
     return await response.json();
   },
 
   async getSession(sessionId: string): Promise<DebateSession> {
-    const response = await fetch(`${API_BASE_URL}/debate/sessions/${sessionId}`);
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Không tìm thấy phiên (${response.status}): ${err}`);
-    }
+    const response = await apiFetch(`${API_BASE_URL}/debate/sessions/${sessionId}`);
     return await response.json();
   },
 
   async deleteSession(sessionId: string): Promise<{ status: string; session_id: string }> {
-    const response = await fetch(`${API_BASE_URL}/debate/sessions/${sessionId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/debate/sessions/${sessionId}`, {
       method: 'DELETE',
     });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Xóa phiên thất bại (${response.status}): ${err}`);
-    }
     return await response.json();
   },
 
@@ -105,7 +252,7 @@ export const api = {
     responseMode: 'voice' | 'text' = 'text',
     durationSeconds: number = 0
   ): Promise<RebuttalResponse> {
-    const response = await fetch(`${API_BASE_URL}/debate/sessions/${sessionId}/turns`, {
+    const response = await apiFetch(`${API_BASE_URL}/debate/sessions/${sessionId}/turns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -114,10 +261,6 @@ export const api = {
         duration_seconds: durationSeconds,
       }),
     });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Gửi phản hồi thất bại (${response.status}): ${err}`);
-    }
     return await response.json();
   },
 
@@ -125,20 +268,12 @@ export const api = {
   // Scorecards & Analytics (Real Data)
   // ==========================================
   async listScorecards(): Promise<Scorecard[]> {
-    const response = await fetch(`${API_BASE_URL}/scorecards`);
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Không thể tải danh sách bảng điểm (${response.status}): ${err}`);
-    }
+    const response = await apiFetch(`${API_BASE_URL}/scorecards`);
     return await response.json();
   },
 
   async getScorecard(sessionId: string): Promise<Scorecard> {
-    const response = await fetch(`${API_BASE_URL}/scorecards/${sessionId}`);
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Không thể lấy bảng điểm (${response.status}): ${err}`);
-    }
+    const response = await apiFetch(`${API_BASE_URL}/scorecards/${sessionId}`);
     return await response.json();
   },
 
@@ -164,8 +299,7 @@ export const api = {
     default_avatar_id: string;
     default_voice_id: string;
   }> {
-    const res = await fetch(`${API_BASE_URL}/avatar/status`);
-    if (!res.ok) throw new Error('Không thể kiểm tra trạng thái Avatar');
+    const res = await apiFetch(`${API_BASE_URL}/avatar/status`, {}, { requireAuth: false });
     return await res.json();
   },
 
@@ -175,7 +309,7 @@ export const api = {
     voice_id?: string;
     quality?: string;
   }): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/avatar/session/new`, {
+    const res = await apiFetch(`${API_BASE_URL}/avatar/session/new`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params || {}),
@@ -189,7 +323,7 @@ export const api = {
     sdp_answer: any;
     token?: string;
   }): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/avatar/session/start`, {
+    const res = await apiFetch(`${API_BASE_URL}/avatar/session/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -203,7 +337,7 @@ export const api = {
     candidate: any;
     token?: string;
   }): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/avatar/session/ice`, {
+    const res = await apiFetch(`${API_BASE_URL}/avatar/session/ice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -218,7 +352,7 @@ export const api = {
     token?: string;
     voice_id?: string;
   }): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/avatar/speak`, {
+    const res = await apiFetch(`${API_BASE_URL}/avatar/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -231,7 +365,7 @@ export const api = {
     session_id: string;
     token?: string;
   }): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/avatar/session/stop`, {
+    const res = await apiFetch(`${API_BASE_URL}/avatar/session/stop`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -259,15 +393,11 @@ export const api = {
     idle_video_url?: string | null;
     source_url?: string | null;
   }> {
-    const res = await fetch(`${DID_AGENT_BASE_URL}/chat/start`, {
+    const res = await apiFetch(`${DID_AGENT_BASE_URL}/chat/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params || {}),
     });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`D-ID /chat/start failed (${res.status}): ${errText}`);
-    }
     return await res.json();
   },
 
@@ -277,15 +407,11 @@ export const api = {
     sdp: RTCSessionDescriptionInit;
     agent_id?: string | null;
   }): Promise<any> {
-    const res = await fetch(`${DID_AGENT_BASE_URL}/chat/sdp`, {
+    const res = await apiFetch(`${DID_AGENT_BASE_URL}/chat/sdp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`D-ID /chat/sdp failed (${res.status}): ${errText}`);
-    }
     return await res.json();
   },
 
@@ -297,7 +423,7 @@ export const api = {
     sdpMLineIndex?: number | null;
     agent_id?: string | null;
   }): Promise<any> {
-    const res = await fetch(`${DID_AGENT_BASE_URL}/chat/ice`, {
+    const res = await apiFetch(`${DID_AGENT_BASE_URL}/chat/ice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -313,15 +439,11 @@ export const api = {
     chat_id?: string | null;
     voice_id?: string;
   }): Promise<any> {
-    const res = await fetch(`${DID_AGENT_BASE_URL}/chat/speak`, {
+    const res = await apiFetch(`${DID_AGENT_BASE_URL}/chat/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`D-ID /chat/speak failed (${res.status}): ${errText}`);
-    }
     return await res.json();
   },
 
@@ -330,7 +452,7 @@ export const api = {
     session_id?: string | null;
     agent_id?: string | null;
   }): Promise<any> {
-    const res = await fetch(`${DID_AGENT_BASE_URL}/chat/stop`, {
+    const res = await apiFetch(`${DID_AGENT_BASE_URL}/chat/stop`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

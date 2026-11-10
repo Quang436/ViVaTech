@@ -66,6 +66,19 @@
   textarea:user-invalid,
   select:user-invalid {
     border-color: var(--red);
+    background-color: #fff5f6;
+  }
+
+  .auth-field .auth-error-msg {
+    display: none;
+  }
+
+  .auth-field:has(input:user-invalid) .auth-error-msg {
+    display: block;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):user-valid {
+    border-color: var(--mint-ink);
   }
 }
 

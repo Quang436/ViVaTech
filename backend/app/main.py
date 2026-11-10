@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import os
 
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import ensure_schema_compatibility
 from app.api.v1.api_router import api_router
 from app.api.v1.did_agent import router as did_agent_router
 from app.websockets.debate_ws import handle_debate_websocket
@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     # Startup: initialize database tables and directories
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
-    Base.metadata.create_all(bind=engine)
+    ensure_schema_compatibility()
     print("=" * 60)
     print(f"[START] {settings.PROJECT_NAME} v{settings.VERSION} Started")
     print(f"[DOCS] API Docs available at http://127.0.0.1:8000/docs")

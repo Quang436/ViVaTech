@@ -22,6 +22,7 @@ interface ArenaChamberProps {
   session: DebateSession;
   persona: CouncilPersona;
   onSubmitTurn: (response: string, mode: 'voice' | 'text', duration: number) => Promise<void>;
+  onFinishEarly?: () => Promise<void> | void;
   isCouncilThinking: boolean;
   voiceEnabled: boolean;
   onToggleVoice: () => void;
@@ -31,6 +32,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   session,
   persona,
   onSubmitTurn,
+  onFinishEarly,
   isCouncilThinking,
   voiceEnabled,
   onToggleVoice,
@@ -41,6 +43,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   const [firstInputOffsetSec, setFirstInputOffsetSec] = useState<number | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(60);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
+  const [micNotice, setMicNotice] = useState<string | null>(null);
   const turnStartTimeRef = useRef<number>(0);
 
   const {
@@ -49,6 +52,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     startListening,
     stopListening,
     resetTranscript,
+    isSupported: isSpeechSupported,
   } = useSpeechRecognition();
 
   const {
@@ -100,6 +104,13 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   }, [isTimerPaused, isCouncilThinking]);
 
   const handleMicToggle = () => {
+    if (!isSpeechSupported) {
+      setMicNotice(
+        'Trình duyệt hiện tại không hỗ trợ nhận diện giọng nói trực tiếp (Web Speech API). Vui lòng nhập nội dung phản biện vào ô bên dưới.'
+      );
+      return;
+    }
+    setMicNotice(null);
     if (isListening) {
       stopListening();
     } else {
@@ -161,22 +172,30 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       ? 'Chủ tịch Hội đồng Stress-Test'
       : 'Hội đồng Viện AI Quốc gia';
 
-  // Live CoT data from current or previous turn
+  // Live CoT data from current or previous answered turn (never invented)
   const activeCot = currentTurnObj?.ai_thought_process ?? prevTurnObj?.ai_thought_process;
   const latestAccuracy =
-    currentTurnObj?.ground_truth_accuracy ?? prevTurnObj?.ground_truth_accuracy ?? 82;
+    currentTurnObj?.student_response?.trim() &&
+    typeof currentTurnObj.ground_truth_accuracy === 'number'
+      ? currentTurnObj.ground_truth_accuracy
+      : prevTurnObj?.student_response?.trim() &&
+        typeof prevTurnObj.ground_truth_accuracy === 'number'
+      ? prevTurnObj.ground_truth_accuracy
+      : null;
   const latestFlaws =
     (currentTurnObj?.logic_flaws && currentTurnObj.logic_flaws.length > 0
       ? currentTurnObj.logic_flaws
       : prevTurnObj?.logic_flaws) || [];
+
+  const hasAnsweredTurn = (session.turns || []).some((t) => Boolean(t.student_response?.trim()));
 
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   const activeSeconds =
     firstInputOffsetSec !== null
       ? Math.max(1, elapsedTurnSeconds - firstInputOffsetSec)
       : Math.max(1, elapsedTurnSeconds);
-  const wordsPerMinute = wordCount > 0 ? Math.round((wordCount / activeSeconds) * 60) : 128;
-  const latencySec = firstInputOffsetSec !== null ? firstInputOffsetSec.toFixed(2) : '0.42';
+  const wordsPerMinute = wordCount > 0 ? Math.round((wordCount / activeSeconds) * 60) : 0;
+  const latencySec = firstInputOffsetSec !== null ? `${firstInputOffsetSec.toFixed(2)}s` : '--';
 
   const isLowTime = countdownSeconds <= 15;
 
@@ -204,7 +223,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
           </div>
 
           {/* Timer & Session Actions */}
-          <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 self-end md:self-center shrink-0">
             <div
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-sans border ${
                 isLowTime
@@ -242,6 +261,16 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
               )}
               <span>{isTimerPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
             </button>
+            {onFinishEarly && hasAnsweredTurn && (
+              <button
+                type="button"
+                disabled={isCouncilThinking}
+                onClick={() => void onFinishEarly()}
+                className="btn-mint-ghost h-8 px-3.5 text-xs cursor-pointer disabled:opacity-50"
+              >
+                <span>Kết thúc &amp; Chấm điểm</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -300,7 +329,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                         Đối chiếu tài liệu
                       </span>
                       <span className="text-[11px] font-mono font-semibold text-[#085448] bg-white px-2.5 py-0.5 rounded-full border border-[rgba(11,110,94,0.2)]">
-                        Khớp {latestAccuracy}%
+                        {latestAccuracy !== null ? `Khớp ${latestAccuracy}%` : 'Chờ phản hồi'}
                       </span>
                     </div>
                     <p className="font-sans text-xs text-[#465754] leading-relaxed">
@@ -413,7 +442,7 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                     <span>
                       Tốc độ:{' '}
                       <strong className="text-[#0a1413] font-mono font-semibold">
-                        {wordsPerMinute} từ/phút
+                        {wordCount > 0 ? `${wordsPerMinute} từ/phút` : '--'}
                       </strong>
                     </span>
                   </div>
@@ -422,10 +451,19 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
                     <Zap className="w-3.5 h-3.5 text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
                     <span>
                       Độ trễ:{' '}
-                      <strong className="text-[#0a1413] font-mono font-semibold">{latencySec}s</strong>
+                      <strong className="text-[#0a1413] font-mono font-semibold">{latencySec}</strong>
                     </span>
                   </div>
                 </div>
+
+                {micNotice && (
+                  <div
+                    role="status"
+                    className="mb-3 p-2.5 rounded-xl bg-[#fef3c7] border border-[rgba(180,83,9,0.24)] text-[11px] font-sans text-[#78350f]"
+                  >
+                    {micNotice}
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs font-sans gap-2 flex-wrap">

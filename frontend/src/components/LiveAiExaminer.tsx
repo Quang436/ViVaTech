@@ -409,12 +409,23 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
                   className={`w-2 h-2 rounded-full shrink-0 ${
                     isCurrentSpeaking
                       ? 'bg-[#f59e0b] anim-live-pulse'
-                      : 'bg-[#6ee7c8] anim-live-pulse'
+                      : connectionStatus === 'connected'
+                      ? 'bg-[#6ee7c8] anim-live-pulse'
+                      : connectionStatus === 'connecting'
+                      ? 'bg-[#38bdf8] anim-live-pulse'
+                      : 'bg-[#6ee7c8]'
                   }`}
                   aria-hidden="true"
                 />
                 <span className="font-medium truncate">
-                  {speakerName} · {isCurrentSpeaking ? 'Đang chất vấn' : 'Trực tiếp'}
+                  {speakerName} ·{' '}
+                  {isCurrentSpeaking
+                    ? 'Đang chất vấn'
+                    : connectionStatus === 'connected'
+                    ? 'WebRTC Live'
+                    : connectionStatus === 'connecting'
+                    ? 'Đang kết nối...'
+                    : 'Giọng nói AI'}
                 </span>
                 {councilRole && (
                   <span className="hidden sm:inline text-[10px] text-white/75 truncate">

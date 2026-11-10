@@ -588,20 +588,22 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
                           >
                             <Trash2 className="w-3.5 h-3.5" strokeWidth={1.9} aria-hidden="true" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => onViewScorecard(sess)}
-                            className="btn-mint-ghost h-8 px-3.5 text-xs cursor-pointer"
-                          >
-                            {sc ? 'Xem Bảng Điểm' : 'Chấm & Xem Điểm'}
-                          </button>
+                          {(sc || answeredTurns > 0) && (
+                            <button
+                              type="button"
+                              onClick={() => onViewScorecard(sess)}
+                              className="btn-mint-ghost h-8 px-3.5 text-xs cursor-pointer"
+                            >
+                              {sc ? 'Xem Bảng Điểm' : 'Chấm & Xem Điểm'}
+                            </button>
+                          )}
                           {!isDone && (
                             <button
                               type="button"
                               onClick={() => onResumeSession(sess)}
                               className="btn-mint-primary h-8 px-3.5 text-xs cursor-pointer"
                             >
-                              Tiếp tục chất vấn
+                              {answeredTurns > 0 ? 'Tiếp tục chất vấn' : 'Bắt đầu trả lời'}
                             </button>
                           )}
                         </div>

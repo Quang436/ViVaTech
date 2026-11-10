@@ -4,7 +4,9 @@ from typing import List, Optional
 import io
 import re
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.models.session import DebateSession
+from app.models.user import User
 from app.schemas.debate import (
     CreateSessionRequest,
     SessionDetailResponse,
@@ -87,11 +89,13 @@ async def generate_speech(
 @router.post("/sessions", response_model=SessionDetailResponse)
 def create_debate_session(
     payload: CreateSessionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
         session = debate_manager.create_session(
             db=db,
+            user_id=current_user.id,
             title=payload.title,
             persona=payload.persona,
             document_id=payload.document_id,
@@ -100,6 +104,8 @@ def create_debate_session(
             max_turns=payload.max_turns,
         )
         return session
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Không thể khởi tạo phiên tranh biện: {str(e)}")
 
@@ -108,10 +114,12 @@ def create_debate_session(
 def list_debate_sessions(
     skip: int = 0,
     limit: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     sessions = (
         db.query(DebateSession)
+        .filter(DebateSession.user_id == current_user.id)
         .order_by(DebateSession.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -123,22 +131,38 @@ def list_debate_sessions(
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 def get_debate_session(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = db.query(DebateSession).filter(DebateSession.id == session_id).first()
+    session = (
+        db.query(DebateSession)
+        .filter(
+            DebateSession.id == session_id,
+            DebateSession.user_id == current_user.id,
+        )
+        .first()
+    )
     if not session:
-        raise HTTPException(status_code=404, detail="Không tìm thấy phiên tranh biện.")
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên tranh biện hoặc bạn không có quyền truy cập.")
     return session
 
 
 @router.delete("/sessions/{session_id}")
 def delete_debate_session(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = db.query(DebateSession).filter(DebateSession.id == session_id).first()
+    session = (
+        db.query(DebateSession)
+        .filter(
+            DebateSession.id == session_id,
+            DebateSession.user_id == current_user.id,
+        )
+        .first()
+    )
     if not session:
-        raise HTTPException(status_code=404, detail="Không tìm thấy phiên tranh biện.")
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên tranh biện hoặc bạn không có quyền xóa.")
     db.delete(session)
     db.commit()
     return {"status": "deleted", "session_id": session_id}
@@ -148,6 +172,7 @@ def delete_debate_session(
 def submit_turn_response(
     session_id: str,
     payload: SubmitTurnRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -157,6 +182,7 @@ def submit_turn_response(
             student_response=payload.student_response,
             response_mode=payload.response_mode,
             duration_seconds=payload.duration_seconds,
+            user_id=current_user.id,
         )
         return result
     except ValueError as e:

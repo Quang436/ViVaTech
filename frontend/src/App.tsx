@@ -10,9 +10,17 @@ import { NotificationsPopover, type NotificationItem } from './components/Notifi
 import { AuthModal } from './components/AuthModal';
 import { HomeView } from './components/HomeView';
 import { api } from './services/api';
-import type { CouncilPersona, DebateSession, Scorecard, UploadedDocument } from './types';
+import type {
+  AuthUser,
+  CouncilPersona,
+  DebateSession,
+  PlatformStats,
+  Scorecard,
+  UploadedDocument,
+} from './types';
 
 const DEFAULT_AVATAR = '/avatars/user-default.jpg';
+const PROTECTED_TABS: ActiveTab[] = ['documents', 'setup', 'arena', 'scorecard', 'archive'];
 
 const TAB_TITLES: Record<ActiveTab, string> = {
   home: 'VivaArena — Nền Tảng Giả Lập Phản Biện Luận Án AI',
@@ -36,28 +44,15 @@ export function App() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Auth & User Profile State
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('viva_arena_user');
-      if (saved) {
-        const parsed = JSON.parse(saved) as UserProfile;
-        if (parsed.avatar && parsed.avatar.includes('googleusercontent.com')) {
-          parsed.avatar = DEFAULT_AVATAR;
-        }
-        return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return {
-      name: 'Nghiên cứu sinh',
-      email: 'researcher@viva-arena.edu.vn',
-      role: 'Bảo vệ Khóa luận',
-      avatar: DEFAULT_AVATAR,
-    };
-  });
+  // Real Auth, Bootstrapping, Redirect & Platform Metrics State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState<boolean>(() =>
+    Boolean(api.getToken())
+  );
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [pendingTab, setPendingTab] = useState<ActiveTab | null>(null);
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
 
   // Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -69,13 +64,23 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
 
-  // Tải toàn bộ dữ liệu thật từ Backend (Documents, Sessions, Scorecards)
+  const refreshStats = useCallback(async () => {
+    try {
+      const stats = await api.getPlatformStats();
+      setPlatformStats(stats);
+    } catch {
+      // ignore stats transient error
+    }
+  }, []);
+
+  // Tải toàn bộ dữ liệu thật thuộc tài khoản đang đăng nhập (Documents, Sessions, Scorecards)
   const refreshRealData = useCallback(async () => {
+    if (!api.getToken()) return;
     try {
       const [docsList, sessList, cardsList] = await Promise.all([
-        api.listDocuments().catch(() => []),
-        api.listSessions().catch(() => []),
-        api.listScorecards().catch(() => []),
+        api.listDocuments(),
+        api.listSessions(),
+        api.listScorecards(),
       ]);
       setDocuments(docsList);
       setSessions(sessList);
@@ -124,17 +129,88 @@ export function App() {
       }
       setNotifications(realNotifs);
 
-      if (cardsList.length > 0) {
-        setScorecardData((prev) => prev ?? cardsList[0]);
-      }
+      setScorecardData((prev) => {
+        if (prev && cardsList.some((c) => c.id === prev.id)) {
+          return prev;
+        }
+        return cardsList[0] ?? null;
+      });
+      setActiveSession((prev) => {
+        if (!prev) return null;
+        return sessList.find((s) => s.id === prev.id) ?? prev;
+      });
     } catch (err) {
       console.error('Lỗi đồng bộ dữ liệu thật từ Backend:', err);
     }
   }, []);
 
+  // Đăng ký handler tự động xử lý 401 (hết hạn / thu hồi token)
   useEffect(() => {
-    void refreshRealData();
-  }, [refreshRealData]);
+    api.setUnauthorizedHandler(() => {
+      setCurrentUser(null);
+      setActiveSession(null);
+      setScorecardData(null);
+      setDocuments([]);
+      setSessions([]);
+      setScorecards([]);
+      setNotifications([]);
+      setIsNotificationsOpen(false);
+      setActiveTab((prev) => {
+        if (PROTECTED_TABS.includes(prev)) {
+          setPendingTab(prev);
+        }
+        return 'home';
+      });
+      setAuthPrompt('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
+      setIsAuthModalOpen(true);
+    });
+    return () => api.setUnauthorizedHandler(null);
+  }, []);
+
+  // Khởi tạo phiên thật: kiểm tra Bearer Token qua /auth/me và tải thống kê hệ thống
+  useEffect(() => {
+    try {
+      localStorage.removeItem('viva_arena_user');
+    } catch {
+      // ignore
+    }
+
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      await refreshStats();
+
+      const token = api.getToken();
+      if (!token) {
+        if (!cancelled) setIsAuthBootstrapping(false);
+        return;
+      }
+
+      try {
+        const me = await api.getMe();
+        if (cancelled) return;
+        setCurrentUser({
+          name: me.name,
+          email: me.email,
+          role: me.role,
+          avatar: DEFAULT_AVATAR,
+        });
+        await refreshRealData();
+      } catch {
+        api.clearToken();
+        if (!cancelled) {
+          setCurrentUser(null);
+        }
+      } finally {
+        if (!cancelled) setIsAuthBootstrapping(false);
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshRealData, refreshStats]);
 
   // Upload Document thật & cập nhật danh sách
   const handleUploadDocument = async (file: File): Promise<UploadedDocument> => {
@@ -156,12 +232,14 @@ export function App() {
       },
       ...prev,
     ]);
+    void refreshStats();
     return uploaded;
   };
 
   const handleDeleteDocument = async (docId: string) => {
     await api.deleteDocument(docId);
     setDocuments((prev) => prev.filter((d) => d.document_id !== docId));
+    void refreshStats();
   };
 
   // Step 1: Start Debate Session
@@ -174,6 +252,8 @@ export function App() {
     mode: 'voice' | 'text';
   }) => {
     if (!currentUser) {
+      setPendingTab('setup');
+      setAuthPrompt('Vui lòng đăng nhập để bắt đầu phiên chất vấn với Hội đồng AI.');
       setIsAuthModalOpen(true);
       return;
     }
@@ -191,6 +271,7 @@ export function App() {
       setActiveSession(session);
       setSessions((prev) => [session, ...prev]);
       setActiveTab('arena');
+      void refreshStats();
     } catch (err) {
       console.error('Lỗi khởi tạo phiên:', err);
       setActionError(err instanceof Error ? err.message : 'Không thể khởi tạo phiên tranh biện.');
@@ -233,7 +314,7 @@ export function App() {
         setActiveSession(completedSession);
         const card = await api.getScorecard(activeSession.id);
         setScorecardData(card);
-        await refreshRealData();
+        await Promise.all([refreshRealData(), refreshStats()]);
         setActiveTab('scorecard');
       } else {
         const nextTurnObj = {
@@ -252,10 +333,32 @@ export function App() {
         };
         setActiveSession(nextSession);
         setSessions((prev) => prev.map((s) => (s.id === nextSession.id ? nextSession : s)));
+        void refreshStats();
       }
     } catch (err) {
       console.error('Lỗi gửi phản hồi:', err);
       setActionError(err instanceof Error ? err.message : 'Lỗi khi xử lý câu trả lời.');
+    } finally {
+      setIsCouncilThinking(false);
+    }
+  };
+
+  // Finish & grade session once >= 1 turn is answered
+  const handleFinishAndScore = async () => {
+    if (!activeSession) return;
+    setIsCouncilThinking(true);
+    setActionError(null);
+    try {
+      const card = await api.getScorecard(activeSession.id);
+      setActiveSession((prev) => (prev ? { ...prev, status: 'completed' } : null));
+      setScorecardData(card);
+      await Promise.all([refreshRealData(), refreshStats()]);
+      setActiveTab('scorecard');
+    } catch (err) {
+      console.error('Lỗi chấm điểm phiên:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Không thể chấm điểm phiên tranh biện này.'
+      );
     } finally {
       setIsCouncilThinking(false);
     }
@@ -268,7 +371,7 @@ export function App() {
       const card = await api.getScorecard(sess.id);
       setActiveSession(sess);
       setScorecardData(card);
-      await refreshRealData();
+      await Promise.all([refreshRealData(), refreshStats()]);
       setActiveTab('scorecard');
     } catch (err) {
       console.error('Lỗi lấy bảng điểm:', err);
@@ -288,6 +391,10 @@ export function App() {
       if (activeSession?.id === sessionId) {
         setActiveSession(null);
       }
+      if (scorecardData?.session_id === sessionId) {
+        setScorecardData(null);
+      }
+      void refreshStats();
     } catch (err) {
       console.error('Lỗi xóa phiên:', err);
       setActionError(err instanceof Error ? err.message : 'Không thể xóa phiên này.');
@@ -296,37 +403,48 @@ export function App() {
 
   const handleRestart = () => {
     setActiveSession(null);
-    setActiveTab('setup');
+    navigateToTab('setup');
   };
 
-  const handleLoginSuccess = (user: { name: string; email: string; role: string }) => {
-    const newProfile: UserProfile = {
+  const handleLoginSuccess = async (user: AuthUser) => {
+    setActiveSession(null);
+    setScorecardData(null);
+    setDocuments([]);
+    setSessions([]);
+    setScorecards([]);
+    setNotifications([]);
+    setActionError(null);
+    setAuthPrompt(null);
+
+    setCurrentUser({
       name: user.name,
       email: user.email,
       role: user.role,
       avatar: DEFAULT_AVATAR,
-    };
-    setCurrentUser(newProfile);
-    try {
-      localStorage.setItem('viva_arena_user', JSON.stringify(newProfile));
-    } catch {
-      // ignore
-    }
-    if (activeTab === 'home') {
-      setActiveTab('setup');
-    }
+    });
+
+    const destination = pendingTab ?? (activeTab === 'home' ? 'setup' : activeTab);
+    setPendingTab(null);
+    setActiveTab(destination);
+
+    await Promise.all([refreshRealData(), refreshStats()]);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await api.logout();
     setCurrentUser(null);
     setActiveSession(null);
-    try {
-      localStorage.removeItem('viva_arena_user');
-    } catch {
-      // ignore
-    }
-    setActiveTab('home');
+    setScorecardData(null);
+    setDocuments([]);
+    setSessions([]);
+    setScorecards([]);
+    setNotifications([]);
+    setPendingTab(null);
+    setAuthPrompt(null);
+    setActionError(null);
     setIsNotificationsOpen(false);
+    setActiveTab('home');
+    await refreshStats();
   };
 
   const handleMarkAllAsRead = () => {
@@ -335,7 +453,18 @@ export function App() {
 
   const navigateToTab = (tab: ActiveTab) => {
     setActionError(null);
-    if (tab === 'archive' || tab === 'documents') {
+    if (PROTECTED_TABS.includes(tab) && !currentUser) {
+      if (isAuthBootstrapping) return;
+      setPendingTab(tab);
+      setAuthPrompt(
+        'Vui lòng đăng nhập hoặc đăng ký tài khoản để truy cập khu vực làm việc riêng của bạn.'
+      );
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (tab === 'home') {
+      void refreshStats();
+    } else if (tab === 'archive' || tab === 'documents' || tab === 'scorecard') {
       void refreshRealData();
     }
     setActiveTab(tab);
@@ -361,12 +490,18 @@ export function App() {
         activeTab={activeTab}
         onSelectTab={navigateToTab}
         sessionCode={
-          activeSession ? `#VV-${activeSession.id.slice(0, 4).toUpperCase()}` : '#CHƯA-MỞ'
+          currentUser && activeSession ? `#VV-${activeSession.id.slice(0, 4).toUpperCase()}` : ''
         }
-        hasActiveSession={!!activeSession}
+        hasActiveSession={
+          Boolean(currentUser && activeSession && activeSession.status !== 'completed')
+        }
         user={currentUser}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
+        onOpenAuth={() => {
+          setPendingTab(null);
+          setAuthPrompt(null);
+          setIsAuthModalOpen(true);
+        }}
+        onLogout={() => void handleLogout()}
         onOpenNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)}
         isNotificationsOpen={isNotificationsOpen}
         unreadNotificationCount={unreadCount}
@@ -407,135 +542,154 @@ export function App() {
       {/* Native <dialog> Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthPrompt(null);
+          setPendingTab(null);
+        }}
+        onLoginSuccess={(u) => void handleLoginSuccess(u)}
+        promptMessage={authPrompt}
       />
 
       {/* Main View Router */}
       <div key={activeTab} className="relative z-10 flex-1 flex flex-col mint-page-in">
-        {activeTab === 'home' && (
-          <HomeView
-            onStartSetup={() => {
-              if (!currentUser) {
-                setIsAuthModalOpen(true);
-              } else {
-                navigateToTab('setup');
-              }
-            }}
-            onSelectPersona={(p) => {
-              setSelectedPersona(p);
-              if (!currentUser) {
-                setIsAuthModalOpen(true);
-              } else {
-                navigateToTab('setup');
-              }
-            }}
-            onExploreArchive={() => navigateToTab('archive')}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            user={currentUser}
-          />
-        )}
-
-        {activeTab === 'setup' && (
-          <SetupView
-            selectedPersona={selectedPersona}
-            onSelectPersona={(p) => setSelectedPersona(p)}
-            documents={documents}
-            onStartDebate={handleStartDebate}
-            isLoading={isLoading}
-            onFileUpload={handleUploadDocument}
-          />
-        )}
-
-        {activeTab === 'arena' && !activeSession && (
+        {isAuthBootstrapping && activeTab !== 'home' ? (
           <main
             id="main-content"
             tabIndex={-1}
-            className="pt-20 pb-20 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-4 outline-none"
+            className="pt-20 pb-20 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-3 outline-none"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[rgba(110,231,200,0.2)] border border-[rgba(11,110,94,0.22)] text-[#085448] flex items-center justify-center">
-              <BrainCircuit className="w-8 h-8" strokeWidth={1.8} aria-hidden="true" />
+            <div className="w-12 h-12 rounded-2xl bg-[rgba(110,231,200,0.22)] border border-[rgba(11,110,94,0.22)] text-[#085448] flex items-center justify-center animate-pulse">
+              <BrainCircuit className="w-6 h-6" strokeWidth={1.8} aria-hidden="true" />
             </div>
-            <h1 className="font-sans text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-[#0a1413]">
-              Chưa có phiên tranh biện đang mở
-            </h1>
-            <p className="font-sans text-xs sm:text-sm text-[#465754] max-w-md leading-relaxed">
-              Vui lòng chọn tài liệu hoặc nhập đề tài thực tế tại mục Thiết lập để khởi tạo phiên chất vấn với Hội đồng AI, hoặc tiếp tục một phiên từ Kho đề án.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigateToTab('setup')}
-                className="btn-mint-primary h-10 px-5 text-xs sm:text-sm cursor-pointer"
-              >
-                <span>Đến Thiết lập đề tài</span>
-                <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateToTab('archive')}
-                className="btn-mint-ghost h-10 px-5 text-xs sm:text-sm cursor-pointer"
-              >
-                <FolderOpen className="w-4 h-4 text-[#0b6e5e]" strokeWidth={1.9} aria-hidden="true" />
-                <span>Mở phiên từ Lịch sử ({sessions.length})</span>
-              </button>
-            </div>
+            <p className="font-sans text-sm text-[#465754]">Đang xác thực phiên làm việc...</p>
           </main>
-        )}
+        ) : (
+          <>
+            {(activeTab === 'home' || !currentUser) && (
+              <HomeView
+                onStartSetup={() => navigateToTab('setup')}
+                onSelectPersona={(p) => {
+                  setSelectedPersona(p);
+                  navigateToTab('setup');
+                }}
+                onExploreArchive={() => navigateToTab('archive')}
+                onOpenAuth={() => {
+                  setPendingTab(null);
+                  setAuthPrompt(null);
+                  setIsAuthModalOpen(true);
+                }}
+                user={currentUser}
+                stats={platformStats}
+                documents={documents}
+                sessions={sessions}
+                scorecards={scorecards}
+              />
+            )}
 
-        {activeTab === 'arena' && activeSession && (
-          <ArenaChamber
-            session={activeSession}
-            persona={selectedPersona}
-            onSubmitTurn={handleSubmitTurn}
-            isCouncilThinking={isCouncilThinking}
-            voiceEnabled={voiceEnabled}
-            onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
-          />
-        )}
+            {currentUser && activeTab === 'setup' && (
+              <SetupView
+                selectedPersona={selectedPersona}
+                onSelectPersona={(p) => setSelectedPersona(p)}
+                documents={documents}
+                onStartDebate={handleStartDebate}
+                isLoading={isLoading}
+                onFileUpload={handleUploadDocument}
+              />
+            )}
 
-        {activeTab === 'scorecard' && (
-          <ScorecardView
-            scorecard={scorecardData}
-            persona={selectedPersona}
-            topicTitle={activeSession?.title || 'Phiên bảo vệ học thuật'}
-            onRestart={handleRestart}
-            onGoToArchive={() => navigateToTab('archive')}
-          />
-        )}
+            {currentUser && activeTab === 'arena' && !activeSession && (
+              <main
+                id="main-content"
+                tabIndex={-1}
+                className="pt-20 pb-20 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-4 outline-none"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-[rgba(110,231,200,0.2)] border border-[rgba(11,110,94,0.22)] text-[#085448] flex items-center justify-center">
+                  <BrainCircuit className="w-8 h-8" strokeWidth={1.8} aria-hidden="true" />
+                </div>
+                <h1 className="font-sans text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-[#0a1413]">
+                  Chưa có phiên tranh biện đang mở
+                </h1>
+                <p className="font-sans text-xs sm:text-sm text-[#465754] max-w-md leading-relaxed">
+                  Vui lòng chọn tài liệu hoặc nhập đề tài thực tế tại mục Thiết lập để khởi tạo phiên chất vấn với Hội đồng AI, hoặc tiếp tục một phiên từ Kho đề án.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateToTab('setup')}
+                    className="btn-mint-primary h-10 px-5 text-xs sm:text-sm cursor-pointer"
+                  >
+                    <span>Đến Thiết lập đề tài</span>
+                    <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateToTab('archive')}
+                    className="btn-mint-ghost h-10 px-5 text-xs sm:text-sm cursor-pointer"
+                  >
+                    <FolderOpen className="w-4 h-4 text-[#0b6e5e]" strokeWidth={1.9} aria-hidden="true" />
+                    <span>Mở phiên từ Lịch sử ({sessions.length})</span>
+                  </button>
+                </div>
+              </main>
+            )}
 
-        {activeTab === 'documents' && (
-          <DocumentsView
-            documents={documents}
-            onStartSessionWithDoc={(doc) => {
-              void handleStartDebate({
-                title: doc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
-                topic_summary: doc.summary,
-                document_id: doc.document_id,
-                document_name: doc.filename,
-                max_turns: 5,
-                mode: 'voice',
-              });
-            }}
-            onFileUpload={handleUploadDocument}
-            onDeleteDocument={handleDeleteDocument}
-          />
-        )}
+            {currentUser && activeTab === 'arena' && activeSession && (
+              <ArenaChamber
+                session={activeSession}
+                persona={selectedPersona}
+                onSubmitTurn={handleSubmitTurn}
+                onFinishEarly={handleFinishAndScore}
+                isCouncilThinking={isCouncilThinking}
+                voiceEnabled={voiceEnabled}
+                onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+              />
+            )}
 
-        {activeTab === 'archive' && (
-          <ArchiveView
-            sessions={sessions}
-            scorecards={scorecards}
-            onNewSession={() => navigateToTab('setup')}
-            onViewScorecard={handleViewSessionScorecard}
-            onResumeSession={(sess) => {
-              setActiveSession(sess);
-              setSelectedPersona(sess.persona);
-              navigateToTab('arena');
-            }}
-            onDeleteSession={handleDeleteSession}
-            onOpenDocuments={() => navigateToTab('documents')}
-          />
+            {currentUser && activeTab === 'scorecard' && (
+              <ScorecardView
+                scorecard={scorecardData}
+                persona={selectedPersona}
+                topicTitle={activeSession?.title || 'Phiên bảo vệ học thuật'}
+                onRestart={handleRestart}
+                onGoToArchive={() => navigateToTab('archive')}
+              />
+            )}
+
+            {currentUser && activeTab === 'documents' && (
+              <DocumentsView
+                documents={documents}
+                onStartSessionWithDoc={(doc) => {
+                  void handleStartDebate({
+                    title: doc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
+                    topic_summary: doc.summary,
+                    document_id: doc.document_id,
+                    document_name: doc.filename,
+                    max_turns: 5,
+                    mode: 'voice',
+                  });
+                }}
+                onFileUpload={handleUploadDocument}
+                onDeleteDocument={handleDeleteDocument}
+              />
+            )}
+
+            {currentUser && activeTab === 'archive' && (
+              <ArchiveView
+                sessions={sessions}
+                scorecards={scorecards}
+                onNewSession={() => navigateToTab('setup')}
+                onViewScorecard={handleViewSessionScorecard}
+                onResumeSession={(sess) => {
+                  setActiveSession(sess);
+                  setSelectedPersona(sess.persona);
+                  navigateToTab('arena');
+                }}
+                onDeleteSession={handleDeleteSession}
+                onOpenDocuments={() => navigateToTab('documents')}
+              />
+            )}
+          </>
         )}
       </div>
 

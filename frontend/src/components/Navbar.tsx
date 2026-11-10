@@ -52,7 +52,7 @@ export const BrandMark: React.FC<{ className?: string }> = ({ className = 'w-6 h
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onSelectTab,
-  sessionCode = '#VV-9042',
+  sessionCode = '',
   hasActiveSession = false,
   user,
   onOpenAuth,

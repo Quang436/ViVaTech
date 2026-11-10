@@ -1,6 +1,5 @@
 import os
 import json
-import uuid
 import zipfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -93,6 +92,7 @@ class RAGEngine:
         doc_id: str,
         filename: str,
         content: str,
+        user_id: str,
         pages: int = 1,
         file_size_bytes: int = 0,
         file_path: Optional[str] = None,
@@ -101,6 +101,7 @@ class RAGEngine:
         if not chunks:
             chunks = [content.strip() or f"Tài liệu {filename}"]
 
+        word_count = len(content.split())
         clean_summary = chunks[0][:350].strip()
         if len(chunks[0]) > 350:
             clean_summary += "..."
@@ -108,12 +109,14 @@ class RAGEngine:
         now_iso = datetime.utcnow().isoformat()
         doc_record = {
             "document_id": doc_id,
+            "user_id": user_id,
             "filename": filename,
             "raw_text": content,
             "chunks": chunks,
             "total_chunks": len(chunks),
             "pages": max(1, pages),
             "file_size_bytes": file_size_bytes,
+            "word_count": word_count,
             "file_path": file_path,
             "summary": clean_summary,
             "created_at": now_iso,
@@ -130,7 +133,7 @@ class RAGEngine:
                 collection.add(
                     documents=chunks,
                     ids=ids,
-                    metadatas=[{"source": filename, "chunk_idx": idx} for idx in range(len(chunks))],
+                    metadatas=[{"source": filename, "chunk_idx": idx, "user_id": user_id} for idx in range(len(chunks))],
                 )
             except Exception as e:
                 print(f"[RAG] Error adding to ChromaDB: {e}")
@@ -141,13 +144,17 @@ class RAGEngine:
             "total_chunks": len(chunks),
             "pages": doc_record["pages"],
             "file_size_bytes": file_size_bytes,
+            "word_count": word_count,
             "summary": clean_summary,
             "created_at": now_iso,
         }
 
-    def list_documents(self) -> List[Dict[str, Any]]:
+    def list_documents(self, user_id: str) -> List[Dict[str, Any]]:
         docs = []
         for doc_id, info in self._docs_store.items():
+            if info.get("user_id") != user_id:
+                continue
+            raw_text = info.get("raw_text", "")
             docs.append(
                 {
                     "document_id": doc_id,
@@ -155,6 +162,7 @@ class RAGEngine:
                     "total_chunks": info.get("total_chunks", len(info.get("chunks", []))),
                     "pages": info.get("pages", 1),
                     "file_size_bytes": info.get("file_size_bytes", 0),
+                    "word_count": info.get("word_count", len(raw_text.split()) if raw_text else 0),
                     "summary": info.get("summary", ""),
                     "created_at": info.get("created_at", datetime.utcnow().isoformat()),
                 }
@@ -162,10 +170,28 @@ class RAGEngine:
         docs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return docs
 
-    def delete_document(self, doc_id: str) -> bool:
-        info = self._docs_store.pop(doc_id, None)
-        if not info:
+    def get_document(self, doc_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+        info = self._docs_store.get(doc_id)
+        if not info or info.get("user_id") != user_id:
+            return None
+        raw_text = info.get("raw_text", "")
+        return {
+            "document_id": doc_id,
+            "filename": info.get("filename", "Untitled"),
+            "total_chunks": info.get("total_chunks", len(info.get("chunks", []))),
+            "pages": info.get("pages", 1),
+            "file_size_bytes": info.get("file_size_bytes", 0),
+            "word_count": info.get("word_count", len(raw_text.split()) if raw_text else 0),
+            "summary": info.get("summary", ""),
+            "chunks": info.get("chunks", []),
+            "created_at": info.get("created_at", datetime.utcnow().isoformat()),
+        }
+
+    def delete_document(self, doc_id: str, user_id: str) -> bool:
+        info = self._docs_store.get(doc_id)
+        if not info or info.get("user_id") != user_id:
             return False
+        self._docs_store.pop(doc_id, None)
         self._save_persisted_docs()
         file_path = info.get("file_path")
         if file_path and os.path.exists(file_path):

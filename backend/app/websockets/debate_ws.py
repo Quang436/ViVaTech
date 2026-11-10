@@ -3,6 +3,9 @@ from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List
 from app.services.debate_manager import debate_manager
 from app.core.database import SessionLocal
+from app.core.security import resolve_user_from_token
+from app.models.session import DebateSession
+
 
 class ConnectionManager:
     def __init__(self):
@@ -26,9 +29,31 @@ class ConnectionManager:
             for connection in self.active_connections[session_id]:
                 await connection.send_text(json.dumps(message, ensure_ascii=False))
 
+
 ws_manager = ConnectionManager()
 
+
 async def handle_debate_websocket(websocket: WebSocket, session_id: str):
+    token = websocket.query_params.get("token", "")
+    db = SessionLocal()
+    user_id = None
+    try:
+        user = resolve_user_from_token(db, token)
+        if not user:
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+        session = (
+            db.query(DebateSession)
+            .filter(DebateSession.id == session_id, DebateSession.user_id == user.id)
+            .first()
+        )
+        if not session:
+            await websocket.close(code=4404, reason="Session not found")
+            return
+        user_id = user.id
+    finally:
+        db.close()
+
     await ws_manager.connect(session_id, websocket)
     try:
         while True:
@@ -37,24 +62,25 @@ async def handle_debate_websocket(websocket: WebSocket, session_id: str):
             action = payload.get("action")
 
             if action == "student_speaking_start":
-                await ws_manager.broadcast_to_session(session_id, {
-                    "event": "student_status",
-                    "status": "speaking"
-                })
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    {"event": "student_status", "status": "speaking"},
+                )
 
             elif action == "student_turn_submit":
                 student_response = payload.get("response", "")
                 response_mode = payload.get("mode", "voice")
                 duration = payload.get("duration", 0)
 
-                # Broadcast that AI Council is deliberating
-                await ws_manager.broadcast_to_session(session_id, {
-                    "event": "council_status",
-                    "status": "thinking",
-                    "message": "Hội đồng đang đối chiếu tài liệu và phân tích logic..."
-                })
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    {
+                        "event": "council_status",
+                        "status": "thinking",
+                        "message": "Hội đồng đang đối chiếu tài liệu và phân tích logic...",
+                    },
+                )
 
-                # Process turn
                 db = SessionLocal()
                 try:
                     result = debate_manager.process_student_response(
@@ -62,17 +88,18 @@ async def handle_debate_websocket(websocket: WebSocket, session_id: str):
                         session_id=session_id,
                         student_response=student_response,
                         response_mode=response_mode,
-                        duration_seconds=duration
+                        duration_seconds=duration,
+                        user_id=user_id,
                     )
-                    await ws_manager.broadcast_to_session(session_id, {
-                        "event": "turn_result",
-                        "data": result
-                    })
+                    await ws_manager.broadcast_to_session(
+                        session_id,
+                        {"event": "turn_result", "data": result},
+                    )
                 except Exception as e:
-                    await ws_manager.broadcast_to_session(session_id, {
-                        "event": "error",
-                        "message": str(e)
-                    })
+                    await ws_manager.broadcast_to_session(
+                        session_id,
+                        {"event": "error", "message": str(e)},
+                    )
                 finally:
                     db.close()
 

@@ -26,6 +26,7 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react';
+import { api } from '../services/api';
 import type { UploadedDocument } from '../types';
 
 interface DocumentsViewProps {
@@ -56,11 +57,6 @@ const formatRelativeDate = (iso?: string): string => {
   });
 };
 
-const getKnowledgeCoverage = (totalChunks: number): number => {
-  if (!totalChunks || totalChunks <= 0) return 0;
-  return Math.min(98, Math.max(45, 48 + totalChunks * 5));
-};
-
 export const DocumentsView: React.FC<DocumentsViewProps> = ({
   documents,
   onStartSessionWithDoc,
@@ -75,6 +71,9 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     documents[0]?.document_id ?? null
   );
   const [inspectDoc, setInspectDoc] = useState<UploadedDocument | null>(null);
+  const [isLoadingInspect, setIsLoadingInspect] = useState(false);
+  const [inspectError, setInspectError] = useState<string | null>(null);
+  const [showAllChunks, setShowAllChunks] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneSectionRef = useRef<HTMLElement>(null);
@@ -187,6 +186,23 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     const file = e.dataTransfer.files?.[0];
     if (file) {
       await processUploadFile(file);
+    }
+  };
+
+  const handleInspectDocument = async (doc: UploadedDocument) => {
+    setInspectDoc(doc);
+    setInspectError(null);
+    setShowAllChunks(false);
+    setIsLoadingInspect(true);
+    try {
+      const detail = await api.getDocumentDetail(doc.document_id);
+      setInspectDoc(detail);
+    } catch (err: unknown) {
+      setInspectError(
+        err instanceof Error ? err.message : 'Không thể tải các phân đoạn trích xuất từ máy chủ.'
+      );
+    } finally {
+      setIsLoadingInspect(false);
     }
   };
 
@@ -391,7 +407,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 </div>
 
                 {/* Search Input */}
-                <div className="relative">
+                <search className="relative">
                   <label htmlFor="doc-search-input" className="visually-hidden">
                     Tìm tài liệu theo tên hoặc nội dung
                   </label>
@@ -408,7 +424,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                     placeholder="Tìm tài liệu..."
                     className="pl-9 pr-3.5 py-2 text-xs rounded-full bg-white border border-[rgba(10,20,19,0.14)] focus:border-[#0b6e5e] w-full sm:w-56 text-[#0a1413] placeholder:text-[#556361]"
                   />
-                </div>
+                </search>
               </div>
 
               {filteredDocuments.length === 0 ? (
@@ -429,7 +445,6 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 <div className="flex flex-col gap-3.5">
                   {filteredDocuments.map((doc) => {
                     const isSelected = activeDoc?.document_id === doc.document_id;
-                    const coverage = getKnowledgeCoverage(doc.total_chunks);
                     const ext = doc.filename.split('.').pop()?.toLowerCase() || '';
 
                     return (
@@ -487,6 +502,14 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                                   <AlignLeft className="w-3.5 h-3.5" strokeWidth={1.9} aria-hidden="true" />
                                   {doc.total_chunks} phân đoạn
                                 </span>
+                                {doc.word_count && doc.word_count > 0 ? (
+                                  <>
+                                    <span aria-hidden="true" className="text-[#c9d6d3]">/</span>
+                                    <span className="font-mono text-[11px] text-[#465754]">
+                                      {doc.word_count.toLocaleString('vi-VN')} từ
+                                    </span>
+                                  </>
+                                ) : null}
                                 <span aria-hidden="true" className="text-[#c9d6d3]">/</span>
                                 <span className="font-mono text-[11px] text-[#556361]">
                                   {formatRelativeDate(doc.created_at)}
@@ -495,21 +518,16 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                             </div>
                           </div>
 
-                          {/* Knowledge Coverage Progress */}
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-[rgba(10,20,19,0.08)] pt-2.5 sm:pt-0 shrink-0">
+                          {/* Real Vector DB Indexing Facts */}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-[rgba(10,20,19,0.08)] pt-2.5 sm:pt-0 shrink-0 gap-1">
                             <span className="font-mono text-[10px] text-[#556361] uppercase tracking-[0.06em] block">
-                              Độ phủ RAG
+                              Chỉ mục Vector DB
                             </span>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="w-24 bg-[#eff5f3] border border-[rgba(10,20,19,0.08)] h-2 rounded-full overflow-hidden">
-                                <div
-                                  className="bg-[#0b6e5e] h-full rounded-full"
-                                  style={{ width: `${coverage}%` }}
-                                />
-                              </div>
+                            <div className="flex items-center gap-2">
                               <span className="font-mono text-xs font-semibold text-[#0b6e5e]">
-                                {coverage}%
+                                {doc.total_chunks} đoạn
                               </span>
+                              <span className="mint-tag mint">Indexed</span>
                             </div>
                           </div>
                         </div>
@@ -539,7 +557,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setInspectDoc(doc)}
+                              onClick={() => void handleInspectDocument(doc)}
                               className="btn-mint-ghost px-3.5 py-1.5 text-xs cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5 text-[#0b6e5e]" strokeWidth={1.9} aria-hidden="true" />
@@ -577,7 +595,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 </div>
                 <span className="mint-tag mint">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#0b6e5e]" aria-hidden="true" />
-                  {activeDoc ? `RAG ${getKnowledgeCoverage(activeDoc.total_chunks)}%` : 'Chờ dữ liệu'}
+                  {activeDoc ? `${activeDoc.total_chunks} đoạn · ${activeDoc.pages} trang` : 'Chờ dữ liệu'}
                 </span>
               </div>
 
@@ -797,7 +815,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-xs font-sans">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
               <div className="p-3 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)]">
                 <span className="text-[#465754] block">Số trang</span>
                 <strong className="text-[#0a1413] text-sm font-semibold">{inspectDoc.pages} trang</strong>
@@ -805,6 +823,12 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               <div className="p-3 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)]">
                 <span className="text-[#465754] block">Phân đoạn RAG</span>
                 <strong className="text-[#0b6e5e] text-sm font-semibold">{inspectDoc.total_chunks} đoạn</strong>
+              </div>
+              <div className="p-3 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)]">
+                <span className="text-[#465754] block">Tổng số từ</span>
+                <strong className="text-[#0a1413] text-sm font-semibold">
+                  {inspectDoc.word_count ? `${inspectDoc.word_count.toLocaleString('vi-VN')} từ` : '--'}
+                </strong>
               </div>
               <div className="p-3 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)]">
                 <span className="text-[#465754] block">Dung lượng</span>
@@ -819,6 +843,52 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               <p className="font-sans text-sm text-[#0a1413] leading-relaxed whitespace-pre-line">
                 {inspectDoc.summary}
               </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#f7faf9] border border-[rgba(10,20,19,0.08)] flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="mint-eyebrow">
+                  Các phân đoạn thực tế trong Vector DB ({inspectDoc.chunks?.length ?? inspectDoc.total_chunks})
+                </h3>
+                {inspectDoc.chunks && inspectDoc.chunks.length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllChunks((prev) => !prev)}
+                    className="font-mono text-[11px] text-[#0b6e5e] hover:underline bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    {showAllChunks ? 'Thu gọn danh sách' : `Xem toàn bộ ${inspectDoc.chunks.length} đoạn`}
+                  </button>
+                )}
+              </div>
+
+              {isLoadingInspect ? (
+                <div className="flex items-center gap-2 text-xs font-sans text-[#465754] py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
+                  <span>Đang tải các phân đoạn trích xuất từ máy chủ...</span>
+                </div>
+              ) : inspectError ? (
+                <div role="alert" className="text-xs font-sans text-[#be123c] p-3 rounded-xl bg-[#ffe4e6]">
+                  {inspectError}
+                </div>
+              ) : inspectDoc.chunks && inspectDoc.chunks.length > 0 ? (
+                <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1">
+                  {(showAllChunks ? inspectDoc.chunks : inspectDoc.chunks.slice(0, 8)).map((chunk, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-white border border-[rgba(10,20,19,0.08)] text-xs font-sans text-[#0a1413] leading-relaxed"
+                    >
+                      <span className="font-mono text-[10px] font-semibold text-[#0b6e5e] block mb-1">
+                        ĐOẠN #{idx + 1} · {chunk.length} ký tự
+                      </span>
+                      <p className="whitespace-pre-line break-words text-[#465754]">{chunk}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs font-sans text-[#556361] italic">
+                  Không có phân đoạn văn bản nào được tìm thấy cho tài liệu này.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">

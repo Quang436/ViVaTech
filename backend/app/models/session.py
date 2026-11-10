@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
@@ -19,6 +19,7 @@ class DebateSession(Base):
     __tablename__ = "debate_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(255), nullable=False)
     topic_summary = Column(Text, nullable=True)
     persona = Column(String(50), default=CouncilPersona.ACADEMIC_REVIEWER.value)
@@ -31,5 +32,6 @@ class DebateSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="sessions")
     turns = relationship("DebateTurn", back_populates="session", cascade="all, delete-orphan", order_by="DebateTurn.turn_number")
     scorecard = relationship("Scorecard", back_populates="session", uselist=False, cascade="all, delete-orphan")

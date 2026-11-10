@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import {
   X,
   Check,
@@ -9,32 +9,46 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  AlertCircle,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
+import { api } from '../services/api';
+import type { AcademicRoleKey, AuthUser } from '../types';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (user: { name: string; email: string; role: string }) => void;
+  onLoginSuccess: (user: AuthUser) => void;
+  promptMessage?: string | null;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onLoginSuccess,
+  promptMessage,
 }) => {
   const [activeTab, setActiveTab] = useState<'signin' | 'register'>('signin');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'researcher' | 'advisor'>('student');
+  const [role, setRole] = useState<AcademicRoleKey>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [helperNotice, setHelperNotice] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pointerDownOutsideRef = useRef(false);
+  const uid = useId();
+  const titleId = `${uid}-auth-title`;
+  const emailHintId = `${uid}-email-hint`;
+  const emailErrorId = `${uid}-email-error`;
+  const pwRulesId = `${uid}-pw-rules`;
+  const pwErrorId = `${uid}-pw-error`;
 
-  // Sync React isOpen prop with native <dialog>.showModal() / .close()
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -51,7 +65,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen]);
 
-  // Progressive enhancement fallback for backdrop dismissal when browser lacks native closedBy
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog || 'closedBy' in HTMLDialogElement.prototype) return;
@@ -85,46 +98,77 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const finalName =
-      activeTab === 'register' && fullName.trim()
-        ? fullName.trim()
-        : email
-        ? email.split('@')[0]
-        : 'Nguyễn Văn Khang';
-
-    const roleName =
-      role === 'student'
-        ? 'Học viên Khóa 2025'
-        : role === 'researcher'
-        ? 'Nghiên cứu sinh'
-        : 'Giảng viên hướng dẫn';
-
-    onLoginSuccess({
-      name: finalName,
-      email: email || 'khang.nguyen@hcmut.edu.vn',
-      role: roleName,
-    });
+  const switchTab = (next: 'signin' | 'register') => {
+    setActiveTab(next);
+    setErrorMsg(null);
     setHelperNotice(null);
-    onClose();
   };
 
-  const handleQuickSSO = (provider: 'Google' | 'Microsoft') => {
-    onLoginSuccess({
-      name: provider === 'Google' ? 'Nguyễn Văn Khang' : 'TS. Trần Minh',
-      email: provider === 'Google' ? 'khang.nguyen@hcmut.edu.vn' : 'minh.tran@univ.edu.vn',
-      role: provider === 'Google' ? 'Học viên Khóa 2025' : 'Giảng viên hướng dẫn',
-    });
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      setErrorMsg('Vui lòng nhập đầy đủ email và mật khẩu.');
+      return;
+    }
+
+    if (activeTab === 'register' && fullName.trim().length < 2) {
+      setErrorMsg('Họ và tên cần ít nhất 2 ký tự.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Mật khẩu cần ít nhất 6 ký tự.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
     setHelperNotice(null);
-    onClose();
+
+    try {
+      const result =
+        activeTab === 'register'
+          ? await api.register({
+              full_name: fullName.trim(),
+              email: cleanEmail,
+              password,
+              role,
+              remember_me: rememberMe,
+            })
+          : await api.login({
+              email: cleanEmail,
+              password,
+              remember_me: rememberMe,
+            });
+
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setActiveTab('signin');
+      onLoginSuccess(result.user);
+      onClose();
+    } catch (err: unknown) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'Không thể xác thực tài khoản lúc này. Vui lòng thử lại.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <dialog
       ref={dialogRef}
-      aria-labelledby="auth-dialog-title"
+      aria-labelledby={titleId}
       onClose={() => {
+        setActiveTab('signin');
+        setPassword('');
+        setErrorMsg(null);
         setHelperNotice(null);
         if (isOpen) onClose();
       }}
@@ -155,19 +199,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     VIVAARENA ACADEMIC
                   </span>
                   <p className="mint-h2 text-3xl sm:text-4xl mt-5 leading-[1.12]">
-                    Vững vàng trước Hội đồng bảo vệ với{' '}
-                    <span className="mint-serif">trí tuệ phản biện</span>.
+                    Dữ liệu thật. Phản biện thật với{' '}
+                    <span className="mint-serif">hồ sơ riêng tư</span>.
                   </p>
                   <p className="font-sans text-sm sm:text-[15px] text-[#465754] mt-3 leading-relaxed">
-                    Giả lập phản biện áp lực cao, truy vấn chéo tài liệu RAG và chuẩn hóa năng lực lập luận trước giờ G.
+                    Mọi tài liệu RAG, phiên chất vấn Gemini CoT và bảng điểm 4 trục đều gắn liền với tài khoản của bạn trong cơ sở dữ liệu.
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 pt-1">
                   {[
-                    'Luyện tập phản biện thích ứng đa cấp độ',
-                    'Đối soát luận điểm trực tiếp từ tài liệu nạp',
-                    'Đánh giá năng lực và gợi ý câu trả lời chuẩn PREP',
+                    'Tách biệt tài liệu đề án và chỉ mục ChromaDB theo từng tài khoản',
+                    'Lưu trữ toàn bộ lịch sử đối đáp và bảng điểm chấm bởi Gemini AI',
+                    'Xác thực phiên làm việc với mã hóa PBKDF2-SHA256 và Bearer Token',
                   ].map((item) => (
                     <div
                       key={item}
@@ -187,26 +231,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <GraduationCap className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
                 </span>
                 <span>
-                  Được tin dùng bởi hơn <strong className="text-[#0a1413] font-semibold">1,280+</strong> học viên và nghiên cứu sinh từ các trường đại học trọng điểm.
+                  Phiên làm việc được bảo vệ trực tiếp qua máy chủ FastAPI và thu hồi ngay khi bạn nhấn Đăng xuất.
                 </span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: AUTH FORM */}
+          {/* RIGHT COLUMN: REAL CREDENTIAL AUTH FORM */}
           <div className="lg:col-span-6 p-6 sm:p-9 flex flex-col justify-center gap-5 bg-white">
             <div className="flex flex-col gap-3 pr-8">
               <div>
                 <h2
-                  id="auth-dialog-title"
+                  id={titleId}
                   className="font-sans text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-[#0a1413]"
                 >
                   {activeTab === 'signin' ? 'Đăng nhập tài khoản' : 'Tạo tài khoản học thuật'}
                 </h2>
                 <p className="font-sans text-xs sm:text-sm text-[#465754] mt-1">
                   {activeTab === 'signin'
-                    ? 'Nhập thông tin xác thực để truy cập phòng Hội đồng AI'
-                    : 'Đăng ký để lưu trữ lịch sử chất vấn và đề án cá nhân'}
+                    ? 'Nhập email và mật khẩu đã đăng ký để tiếp tục phiên nghiên cứu.'
+                    : 'Đăng ký tài khoản mới để tải tài liệu và mở phòng phản biện AI.'}
                 </p>
               </div>
 
@@ -215,10 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   aria-pressed={activeTab === 'signin'}
-                  onClick={() => {
-                    setActiveTab('signin');
-                    setHelperNotice(null);
-                  }}
+                  onClick={() => switchTab('signin')}
                   className={`py-2 px-3 rounded-full font-sans text-xs sm:text-sm transition-all text-center cursor-pointer border-none ${
                     activeTab === 'signin'
                       ? 'bg-[#0a1413] text-white font-medium shadow-xs'
@@ -230,10 +271,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   aria-pressed={activeTab === 'register'}
-                  onClick={() => {
-                    setActiveTab('register');
-                    setHelperNotice(null);
-                  }}
+                  onClick={() => switchTab('register')}
                   className={`py-2 px-3 rounded-full font-sans text-xs sm:text-sm transition-all text-center cursor-pointer border-none ${
                     activeTab === 'register'
                       ? 'bg-[#0a1413] text-white font-medium shadow-xs'
@@ -245,57 +283,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
-            {/* 2-Column SSO Buttons */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => handleQuickSSO('Google')}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-full bg-white hover:bg-[#eff5f3] border border-[rgba(10,20,19,0.14)] text-[#0a1413] font-sans text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+            {promptMessage && (
+              <div
+                role="status"
+                className="p-3 rounded-2xl bg-[#eff5f3] border border-[rgba(11,110,94,0.22)] text-xs font-sans text-[#064037] flex items-center gap-2"
               >
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    fill="#EA4335"
-                  />
-                </svg>
-                <span>Google SSO</span>
-              </button>
+                <ShieldCheck className="w-4 h-4 text-[#0b6e5e] shrink-0" strokeWidth={2} aria-hidden="true" />
+                <span>{promptMessage}</span>
+              </div>
+            )}
 
-              <button
-                type="button"
-                onClick={() => handleQuickSSO('Microsoft')}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-full bg-white hover:bg-[#eff5f3] border border-[rgba(10,20,19,0.14)] text-[#0a1413] font-sans text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+            {errorMsg && (
+              <div
+                role="alert"
+                className="p-3.5 rounded-2xl bg-[#ffe4e6] border border-[#be123c]/25 text-xs font-sans text-[#881337] flex items-start gap-2.5"
               >
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 21 21" aria-hidden="true">
-                  <rect fill="#f25022" height="9" width="9" x="1" y="1" />
-                  <rect fill="#7fba00" height="9" width="9" x="11" y="1" />
-                  <rect fill="#00a4ef" height="9" width="9" x="1" y="11" />
-                  <rect fill="#ffb900" height="9" width="9" x="11" y="11" />
-                </svg>
-                <span>Microsoft 365</span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[rgba(10,20,19,0.08)]" />
-              <span className="font-mono text-[11px] uppercase tracking-wider text-[#556361] px-1">
-                hoặc dùng email
-              </span>
-              <div className="flex-1 h-px bg-[rgba(10,20,19,0.08)]" />
-            </div>
+                <AlertCircle className="w-4 h-4 text-[#be123c] shrink-0 mt-0.5" strokeWidth={2} aria-hidden="true" />
+                <span className="font-medium leading-relaxed">{errorMsg}</span>
+              </div>
+            )}
 
             {helperNotice && (
               <div
@@ -307,13 +313,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <form
+              onSubmit={handleSubmit}
+              method="post"
+              aria-labelledby={titleId}
+              className="flex flex-col gap-4"
+            >
               {activeTab === 'register' && (
                 <>
-                  <div className="flex flex-col gap-1.5">
+                  <div className="auth-field flex flex-col gap-1.5">
                     <label className="font-sans text-xs font-medium text-[#0a1413]" htmlFor="full-name">
-                      Họ và tên
+                      Họ và tên <span aria-hidden="true">*</span>
                     </label>
                     <div className="relative rounded-xl input-focus-glow">
                       <User
@@ -323,12 +333,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       />
                       <input
                         id="full-name"
+                        name="name"
                         type="text"
                         required
+                        minLength={2}
                         autoComplete="name"
+                        enterKeyHint="next"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Nguyễn Văn Khang"
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          setErrorMsg(null);
+                        }}
+                        placeholder="Ví dụ: Nguyễn Minh Tuấn"
                         className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.14)] text-[#0a1413] font-sans text-sm placeholder:text-[#556361]/70 focus:bg-white focus:border-[#0b6e5e] transition-all"
                       />
                     </div>
@@ -370,10 +386,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </>
               )}
 
-              <div className="flex flex-col gap-1.5">
+              <div className="auth-field flex flex-col gap-1">
                 <label className="font-sans text-xs font-medium text-[#0a1413]" htmlFor="email-input">
-                  Email học thuật hoặc cá nhân
+                  Địa chỉ Email <span aria-hidden="true">*</span>
                 </label>
+                <span id={emailHintId} className="font-sans text-[11px] text-[#556361] mb-0.5">
+                  Định dạng: ten@truong.edu.vn hoặc email cá nhân
+                </span>
                 <div className="relative rounded-xl input-focus-glow">
                   <AtSign
                     className="w-4 h-4 absolute left-3.5 top-3.5 text-[#556361]"
@@ -382,25 +401,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   />
                   <input
                     id="email-input"
+                    name="email"
                     type="email"
                     required
                     autoFocus
-                    autoComplete="email"
+                    autoComplete="username"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
+                    enterKeyHint="next"
+                    aria-describedby={emailHintId}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="sinhvien@edu.vn hoặc name@example.com"
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMsg(null);
+                    }}
+                    placeholder="you@example.com"
                     className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.14)] text-[#0a1413] font-sans text-sm placeholder:text-[#556361]/70 focus:bg-white focus:border-[#0b6e5e] transition-all"
                   />
                 </div>
+                <span id={emailErrorId} className="auth-error-msg font-sans text-[11px] text-[#be123c] mt-0.5">
+                  Lỗi: Vui lòng nhập email đúng định dạng (ví dụ: ten@domain.com).
+                </span>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="auth-field flex flex-col gap-1">
                 <label className="font-sans text-xs font-medium text-[#0a1413]" htmlFor="password-input">
-                  Mật khẩu
+                  Mật khẩu <span aria-hidden="true">*</span>
                 </label>
+                {activeTab === 'register' && (
+                  <span id={pwRulesId} className="font-sans text-[11px] text-[#556361] mb-0.5">
+                    Tối thiểu 6 ký tự (hỗ trợ dán từ trình quản lý mật khẩu)
+                  </span>
+                )}
                 <div className="relative rounded-xl input-focus-glow">
                   <Lock
                     className="w-4 h-4 absolute left-3.5 top-3.5 text-[#556361]"
@@ -409,12 +442,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   />
                   <input
                     id="password-input"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
+                    minLength={6}
                     autoComplete={activeTab === 'signin' ? 'current-password' : 'new-password'}
+                    enterKeyHint="done"
+                    aria-describedby={activeTab === 'register' ? pwRulesId : undefined}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrorMsg(null);
+                    }}
+                    placeholder="Nhập ít nhất 6 ký tự"
                     className="w-full h-11 pl-10 pr-11 rounded-xl bg-[#f7faf9] border border-[rgba(10,20,19,0.14)] text-[#0a1413] font-sans text-sm placeholder:text-[#556361]/70 focus:bg-white focus:border-[#0b6e5e] transition-all"
                   />
                   <button
@@ -431,25 +471,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     )}
                   </button>
                 </div>
+                <span id={pwErrorId} className="auth-error-msg font-sans text-[11px] text-[#be123c] mt-0.5">
+                  Lỗi: Mật khẩu phải chứa tối thiểu 6 ký tự.
+                </span>
               </div>
 
               <div className="flex items-center justify-between pt-0.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     id="remember-me"
+                    name="remember_me"
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded text-[#0b6e5e] focus:ring-[#0b6e5e]/20 border-[rgba(10,20,19,0.22)] bg-[#f7faf9] cursor-pointer"
                   />
-                  <span className="font-sans text-xs text-[#465754]">Ghi nhớ đăng nhập</span>
+                  <span className="font-sans text-xs text-[#465754]">Ghi nhớ trên thiết bị (7 ngày)</span>
                 </label>
                 {activeTab === 'signin' && (
                   <button
                     type="button"
                     onClick={() =>
                       setHelperNotice(
-                        'Phiên luyện tập cá nhân lưu trực tiếp trên trình duyệt — bạn có thể đăng nhập bằng email bất kỳ hoặc chọn Google SSO / Microsoft 365 ở trên.'
+                        'Mật khẩu được băm một chiều (PBKDF2-SHA256) trên máy chủ. Nếu quên mật khẩu cũ, hãy liên hệ quản trị hệ thống hoặc tạo tài khoản mới ở tab Đăng ký mới.'
                       )
                     }
                     className="font-sans text-xs text-[#0b6e5e] hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
@@ -461,29 +505,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                className="btn-mint-primary w-full h-11 mt-1 px-6 text-sm cursor-pointer"
+                disabled={isSubmitting}
+                className="btn-mint-primary w-full h-11 mt-1 px-6 text-sm cursor-pointer disabled:opacity-60"
               >
-                <span>
-                  {activeTab === 'signin'
-                    ? 'Đăng nhập vào VivaArena'
-                    : 'Khởi tạo tài khoản & Đề tài mới'}
-                </span>
-                <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#6ee7c8]" strokeWidth={2} aria-hidden="true" />
+                    <span>{activeTab === 'signin' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {activeTab === 'signin'
+                        ? 'Đăng nhập vào VivaArena'
+                        : 'Đăng ký & Bắt đầu ngay'}
+                    </span>
+                    <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+                  </>
+                )}
               </button>
             </form>
 
             <p className="font-sans text-xs text-[#465754] text-center pt-1 leading-relaxed">
-              Cần cấp tài khoản cho Viện hoặc Nhóm nghiên cứu?{' '}
+              {activeTab === 'signin' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
               <button
                 type="button"
-                onClick={() =>
-                  setHelperNotice(
-                    'Liên hệ phòng Quản trị Đào tạo hoặc quản trị viên máy chủ VivaArena để cấp gói tổ chức.'
-                  )
-                }
-                className="text-[#0b6e5e] hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
+                onClick={() => switchTab(activeTab === 'signin' ? 'register' : 'signin')}
+                className="text-[#0b6e5e] hover:underline font-semibold bg-transparent border-none p-0 cursor-pointer"
               >
-                Liên hệ Quản trị
+                {activeTab === 'signin' ? 'Đăng ký miễn phí' : 'Quay lại Đăng nhập'}
               </button>
             </p>
           </div>

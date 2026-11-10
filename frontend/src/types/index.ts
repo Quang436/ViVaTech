@@ -1,5 +1,33 @@
 export type CouncilPersona = 'feynman' | 'academic_reviewer' | 'strict_council';
 
+export type AcademicRoleKey = 'student' | 'researcher' | 'advisor';
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at?: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_at: string;
+  user: AuthUser;
+}
+
+export interface PlatformStats {
+  total_users: number;
+  total_documents: number;
+  total_chunks: number;
+  total_sessions: number;
+  completed_sessions: number;
+  total_answered_turns: number;
+  total_scorecards: number;
+  average_overall_score: number | null;
+}
+
 export interface PersonaInfo {
   id: CouncilPersona;
   title: string;
@@ -18,7 +46,9 @@ export interface UploadedDocument {
   total_chunks: number;
   pages: number;
   file_size_bytes: number;
+  word_count?: number;
   summary: string;
+  chunks?: string[];
   created_at?: string;
   message?: string;
 }

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite:///./viva_arena.db"
+    ACCESS_TOKEN_EXPIRE_DAYS: int = 7
+    SESSION_EPHEMERAL_HOURS: int = 24
     
     # Vector DB (ChromaDB)
     CHROMA_PERSIST_DIRECTORY: str = "./chroma_db"

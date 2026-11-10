@@ -12,6 +12,7 @@ class DebateManager:
     def create_session(
         self,
         db: Session,
+        user_id: str,
         title: str,
         persona: str,
         document_id: Optional[str] = None,
@@ -22,15 +23,17 @@ class DebateManager:
         ground_truth = ""
         doc_name = document_name
         if document_id:
-            doc_data = rag_engine._docs_store.get(document_id)
-            if doc_data:
-                doc_name = doc_data.get("filename") or doc_name
-                ground_truth = rag_engine.retrieve_ground_truth(doc_id=document_id, query=title, top_k=3)
-                if not ground_truth:
-                    ground_truth = doc_data.get("summary", "")
+            doc_data = rag_engine.get_document(doc_id=document_id, user_id=user_id)
+            if not doc_data:
+                raise ValueError("Không tìm thấy tài liệu hoặc tài liệu không thuộc tài khoản của bạn.")
+            doc_name = doc_data.get("filename") or doc_name
+            ground_truth = rag_engine.retrieve_ground_truth(doc_id=document_id, query=title, top_k=3)
+            if not ground_truth:
+                ground_truth = doc_data.get("summary", "")
 
         session = DebateSession(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             title=title,
             persona=persona,
             document_id=document_id,
@@ -41,35 +44,36 @@ class DebateManager:
             status=SessionStatus.IN_PROGRESS.value,
         )
         db.add(session)
-        db.commit()
-        db.refresh(session)
+        db.flush()
 
-        # Generate Opening Turn (Turn 1) via Real Gemini AI
-        opening = gemini_council.generate_opening_question(
-            topic_title=title,
-            topic_summary=session.topic_summary or "",
-            persona_key=persona,
-            ground_truth=ground_truth,
-        )
+        try:
+            opening = gemini_council.generate_opening_question(
+                topic_title=title,
+                topic_summary=session.topic_summary or "",
+                persona_key=persona,
+                ground_truth=ground_truth,
+            )
 
-        opening_cot = opening.get("cot_reasoning") or {
-            "step1_fact_check": f"Đã đối chiếu đề tài '{title}' với cơ sở dữ liệu tri thức.",
-            "step2_logic_flaws": [opening.get("intended_focus", "Kiểm chứng tính hợp lệ của phương pháp luận mở màn")],
-            "step3_rebuttal_strategy": f"Mở đầu chất vấn trực diện theo phong cách {opening.get('speaker', 'Hội đồng')}.",
-        }
+            opening_question = (opening.get("question") or "").strip()
+            if not opening_question:
+                raise ValueError("Gemini API không trả về câu hỏi khai mạc hợp lệ.")
 
-        turn1 = DebateTurn(
-            id=str(uuid.uuid4()),
-            session_id=session.id,
-            turn_number=1,
-            council_speaker=opening.get("speaker", "Hội đồng Phản biện"),
-            ai_question=opening.get("question", f"Mời bạn trình bày luận điểm cốt lõi của đề tài '{title}'?"),
-            ai_thought_process=opening_cot,
-        )
-        db.add(turn1)
-        db.commit()
-        db.refresh(session)
-        return session
+            opening_cot = opening.get("cot_reasoning") or {}
+            turn1 = DebateTurn(
+                id=str(uuid.uuid4()),
+                session_id=session.id,
+                turn_number=1,
+                council_speaker=opening.get("speaker") or "Hội đồng Phản biện",
+                ai_question=opening_question,
+                ai_thought_process=opening_cot,
+            )
+            db.add(turn1)
+            db.commit()
+            db.refresh(session)
+            return session
+        except Exception:
+            db.rollback()
+            raise
 
     def process_student_response(
         self,
@@ -78,10 +82,15 @@ class DebateManager:
         student_response: str,
         response_mode: str = "text",
         duration_seconds: int = 0,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        clean_response = student_response.strip()
+        if not clean_response:
+            raise ValueError("Nội dung câu trả lời không được để trống.")
+
         session = db.query(DebateSession).filter(DebateSession.id == session_id).first()
-        if not session:
-            raise ValueError(f"Session {session_id} not found")
+        if not session or (user_id is not None and session.user_id != user_id):
+            raise ValueError("Không tìm thấy phiên tranh biện hoặc bạn không có quyền truy cập.")
 
         if session.status == SessionStatus.COMPLETED.value:
             raise ValueError("Phiên phản biện này đã kết thúc.")
@@ -96,15 +105,11 @@ class DebateManager:
         )
 
         if not current_turn_obj:
-            raise ValueError(f"Turn {session.current_turn} not found for session {session_id}")
-
-        current_turn_obj.student_response = student_response
-        current_turn_obj.response_mode = response_mode
-        current_turn_obj.duration_seconds = duration_seconds
+            raise ValueError(f"Không tìm thấy lượt chất vấn số {session.current_turn} cho phiên này.")
 
         ground_truth = rag_engine.retrieve_ground_truth(
             doc_id=session.document_id,
-            query=student_response,
+            query=clean_response,
         )
         if not ground_truth and session.topic_summary:
             ground_truth = session.topic_summary
@@ -126,7 +131,7 @@ class DebateManager:
                     "student_response": (
                         t.student_response
                         if t.turn_number != session.current_turn
-                        else student_response
+                        else clean_response
                     ),
                 }
             )
@@ -137,14 +142,22 @@ class DebateManager:
             current_turn=session.current_turn,
             max_turns=session.max_turns,
             dialogue_history=history,
-            student_response=student_response,
+            student_response=clean_response,
             ground_truth=ground_truth,
         )
 
-        current_turn_obj.ground_truth_accuracy = rebuttal.get("ground_truth_accuracy", 80)
-        current_turn_obj.logic_flaws = rebuttal.get("detected_flaws", [])
-        current_turn_obj.critique_comment = rebuttal.get("critique_previous_answer", "")
-        current_turn_obj.ai_thought_process = rebuttal.get("cot_reasoning", {})
+        raw_accuracy = rebuttal.get("ground_truth_accuracy")
+        if raw_accuracy is None:
+            raise ValueError("Phản hồi phân tích CoT từ Gemini thiếu điểm chính xác Ground Truth.")
+        accuracy_int = max(0, min(100, int(round(float(raw_accuracy)))))
+
+        current_turn_obj.student_response = clean_response
+        current_turn_obj.response_mode = response_mode
+        current_turn_obj.duration_seconds = max(0, int(duration_seconds))
+        current_turn_obj.ground_truth_accuracy = accuracy_int
+        current_turn_obj.logic_flaws = rebuttal.get("detected_flaws") or []
+        current_turn_obj.critique_comment = rebuttal.get("critique_previous_answer") or ""
+        current_turn_obj.ai_thought_process = rebuttal.get("cot_reasoning") or {}
         db.commit()
 
         is_completed = session.current_turn >= session.max_turns
@@ -152,7 +165,7 @@ class DebateManager:
             session.status = SessionStatus.COMPLETED.value
             db.commit()
 
-            self.finalize_scorecard(db, session_id)
+            self.finalize_scorecard(db, session_id, user_id=session.user_id)
             return {
                 "session_id": session_id,
                 "turn_number": session.current_turn,
@@ -161,18 +174,22 @@ class DebateManager:
                 "detected_flaws": current_turn_obj.logic_flaws,
                 "ground_truth_accuracy": current_turn_obj.ground_truth_accuracy,
                 "next_question": rebuttal.get("next_question"),
-                "council_speaker": rebuttal.get("speaker", "Hội đồng"),
-                "cot_reasoning": rebuttal.get("cot_reasoning"),
+                "council_speaker": rebuttal.get("speaker") or current_turn_obj.council_speaker,
+                "cot_reasoning": current_turn_obj.ai_thought_process,
             }
         else:
+            next_question = (rebuttal.get("next_question") or "").strip()
+            if not next_question:
+                raise ValueError("Gemini API không trả về câu hỏi chất vấn tiếp theo.")
+
             session.current_turn += 1
             next_turn_obj = DebateTurn(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
                 turn_number=session.current_turn,
-                council_speaker=rebuttal.get("speaker", "Hội đồng"),
-                ai_question=rebuttal.get("next_question", "Mời bạn trả lời tiếp?"),
-                ai_thought_process=rebuttal.get("cot_reasoning"),
+                council_speaker=rebuttal.get("speaker") or current_turn_obj.council_speaker,
+                ai_question=next_question,
+                ai_thought_process=rebuttal.get("cot_reasoning") or {},
             )
             db.add(next_turn_obj)
             db.commit()
@@ -186,17 +203,22 @@ class DebateManager:
                 "ground_truth_accuracy": current_turn_obj.ground_truth_accuracy,
                 "next_question": next_turn_obj.ai_question,
                 "council_speaker": next_turn_obj.council_speaker,
-                "cot_reasoning": rebuttal.get("cot_reasoning"),
+                "cot_reasoning": next_turn_obj.ai_thought_process,
             }
 
-    def finalize_scorecard(self, db: Session, session_id: str) -> Scorecard:
+    def finalize_scorecard(
+        self,
+        db: Session,
+        session_id: str,
+        user_id: Optional[str] = None,
+    ) -> Scorecard:
+        session = db.query(DebateSession).filter(DebateSession.id == session_id).first()
+        if not session or (user_id is not None and session.user_id != user_id):
+            raise ValueError("Không tìm thấy phiên tranh biện hoặc bạn không có quyền truy cập.")
+
         existing = db.query(Scorecard).filter(Scorecard.session_id == session_id).first()
         if existing:
             return existing
-
-        session = db.query(DebateSession).filter(DebateSession.id == session_id).first()
-        if not session:
-            raise ValueError(f"Session {session_id} not found")
 
         turns = (
             db.query(DebateTurn)
@@ -205,14 +227,18 @@ class DebateManager:
             .all()
         )
 
+        answered_turns = [t for t in turns if t.student_response and t.student_response.strip()]
+        if not answered_turns:
+            raise ValueError("Phiên tranh biện chưa có câu trả lời nào của thí sinh để chấm bảng điểm.")
+
         turns_data = []
-        for t in turns:
+        for t in answered_turns:
             turns_data.append(
                 {
                     "turn_number": t.turn_number,
                     "council_speaker": t.council_speaker,
                     "ai_question": t.ai_question,
-                    "student_response": t.student_response or "Chưa trả lời",
+                    "student_response": t.student_response,
                     "accuracy": t.ground_truth_accuracy,
                     "flaws": t.logic_flaws or [],
                 }
@@ -235,20 +261,32 @@ class DebateManager:
             ground_truth=ground_truth,
         )
 
+        required_scores = [
+            "overall_score",
+            "logic_accuracy_score",
+            "argumentation_score",
+            "composure_score",
+            "clarity_score",
+        ]
+        for key in required_scores:
+            if scorecard_data.get(key) is None:
+                raise ValueError(f"Dữ liệu chấm điểm từ Gemini bị thiếu trường '{key}'.")
+
         scorecard = Scorecard(
             id=str(uuid.uuid4()),
             session_id=session_id,
-            overall_score=float(scorecard_data.get("overall_score", 80.0)),
-            logic_accuracy_score=float(scorecard_data.get("logic_accuracy_score", 80.0)),
-            argumentation_score=float(scorecard_data.get("argumentation_score", 78.0)),
-            composure_score=float(scorecard_data.get("composure_score", 80.0)),
-            clarity_score=float(scorecard_data.get("clarity_score", 82.0)),
-            strengths=scorecard_data.get("strengths", []),
-            weaknesses=scorecard_data.get("weaknesses", []),
-            fallacies_summary=scorecard_data.get("fallacies_summary", []),
-            optimal_answers=scorecard_data.get("optimal_answers", []),
-            overall_verdict=scorecard_data.get("overall_verdict", "Hoàn thành phiên phản biện."),
+            overall_score=float(scorecard_data["overall_score"]),
+            logic_accuracy_score=float(scorecard_data["logic_accuracy_score"]),
+            argumentation_score=float(scorecard_data["argumentation_score"]),
+            composure_score=float(scorecard_data["composure_score"]),
+            clarity_score=float(scorecard_data["clarity_score"]),
+            strengths=scorecard_data.get("strengths") or [],
+            weaknesses=scorecard_data.get("weaknesses") or [],
+            fallacies_summary=scorecard_data.get("fallacies_summary") or [],
+            optimal_answers=scorecard_data.get("optimal_answers") or [],
+            overall_verdict=scorecard_data.get("overall_verdict") or "",
         )
+        session.status = SessionStatus.COMPLETED.value
         db.add(scorecard)
         db.commit()
         db.refresh(scorecard)

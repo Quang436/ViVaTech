@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 import logging
 
+from app.core.security import get_current_user
+from app.models.user import User
 from app.services.streaming_avatar import streaming_avatar_service
 
 logger = logging.getLogger("viva_arena.api.avatar")
@@ -58,7 +60,10 @@ async def get_avatar_service_status():
 
 
 @router.post("/session/new")
-async def create_new_avatar_session(req: NewSessionRequest = Body(...)):
+async def create_new_avatar_session(
+    req: NewSessionRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """
     Tạo phiên làm việc WebRTC mới.
     Trả về SDP Offer và danh sách ICE Servers để client thiết lập RTCPeerConnection.
@@ -97,7 +102,10 @@ async def create_new_avatar_session(req: NewSessionRequest = Body(...)):
 
 
 @router.post("/session/start")
-async def start_avatar_stream(req: StartSessionRequest = Body(...)):
+async def start_avatar_stream(
+    req: StartSessionRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Hoàn tất bắt tay SDP Answer với máy chủ WebRTC của Avatar"""
     if req.provider == "simulated":
         return {"status": "ok", "mode": "simulated"}
@@ -117,7 +125,10 @@ async def start_avatar_stream(req: StartSessionRequest = Body(...)):
 
 
 @router.post("/session/ice")
-async def send_ice_candidate(req: IceCandidateRequest = Body(...)):
+async def send_ice_candidate(
+    req: IceCandidateRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Gửi ICE Candidate phát hiện từ client tới WebRTC server"""
     if req.provider == "simulated":
         return {"status": "ok"}
@@ -137,7 +148,10 @@ async def send_ice_candidate(req: IceCandidateRequest = Body(...)):
 
 
 @router.post("/speak")
-async def avatar_speak(req: SpeakRequest = Body(...)):
+async def avatar_speak(
+    req: SpeakRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Gửi lệnh yêu cầu Avatar phát biểu câu hỏi/phản biện theo thời gian thực"""
     if req.provider == "simulated":
         return {"status": "simulated_speak", "text": req.text}
@@ -157,7 +171,10 @@ async def avatar_speak(req: SpeakRequest = Body(...)):
 
 
 @router.post("/session/stop")
-async def stop_avatar_session(req: StopSessionRequest = Body(...)):
+async def stop_avatar_session(
+    req: StopSessionRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Đóng phiên streaming WebRTC"""
     if req.provider == "simulated":
         return {"status": "closed"}

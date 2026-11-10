@@ -3,10 +3,12 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 import httpx
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.core.security import get_current_user
+from app.models.user import User
 
 logger = logging.getLogger("viva_arena.api.did_agent")
 
@@ -156,7 +158,10 @@ async def _close_all_active_streams(client: httpx.AsyncClient, headers: Dict[str
 # API Endpoints (/api/did-agent/...)
 # =========================================================================
 @router.post("/chat/start")
-async def start_did_agent_chat_stream(req: StartChatStreamRequest = Body(default=StartChatStreamRequest())):
+async def start_did_agent_chat_stream(
+    req: StartChatStreamRequest = Body(default=StartChatStreamRequest()),
+    current_user: User = Depends(get_current_user),
+):
     """
     Khởi tạo phiên WebRTC D-ID (không dùng stream_warmup để tránh màn hình trắng vòng tròn chờ).
     Tự động dọn dẹp phiên cũ để không bị lỗi Max user sessions reached.
@@ -275,7 +280,10 @@ async def start_did_agent_chat_stream(req: StartChatStreamRequest = Body(default
 
 
 @router.post("/chat/sdp")
-async def submit_did_sdp_answer(req: SubmitSdpRequest = Body(...)):
+async def submit_did_sdp_answer(
+    req: SubmitSdpRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Nhận SDP Answer từ Frontend và gửi lên D-ID để hoàn tất bắt tay WebRTC"""
     cfg = _load_did_config()
     headers = _get_headers(cfg["api_key"])
@@ -305,7 +313,10 @@ async def submit_did_sdp_answer(req: SubmitSdpRequest = Body(...)):
 
 
 @router.post("/chat/ice")
-async def submit_did_ice_candidate(req: SubmitIceRequest = Body(...)):
+async def submit_did_ice_candidate(
+    req: SubmitIceRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Chuyển tiếp ICE Candidate từ Frontend lên D-ID"""
     cfg = _load_did_config()
     headers = _get_headers(cfg["api_key"])
@@ -333,13 +344,20 @@ async def submit_did_ice_candidate(req: SubmitIceRequest = Body(...)):
     if session_id:
         payload["session_id"] = session_id
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(url, headers=headers, json=payload)
-        return resp.json() if resp.status_code in (200, 201) else {"status": resp.status_code}
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            return resp.json() if resp.status_code in (200, 201) else {"status": resp.status_code}
+    except httpx.HTTPError as exc:
+        logger.debug(f"D-ID ICE candidate relay skipped ({type(exc).__name__})")
+        return {"status": "ice_relay_skipped"}
 
 
 @router.post("/chat/speak")
-async def trigger_did_agent_speak(req: SpeakChatRequest = Body(...)):
+async def trigger_did_agent_speak(
+    req: SpeakChatRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """
     Gửi văn bản câu hỏi phản biện tới phiên WebRTC D-ID để Giám khảo AI
     phát biểu trực tiếp với cử động môi (lip-sync), mắt và đầu theo thời gian thực.
@@ -388,7 +406,10 @@ async def trigger_did_agent_speak(req: SpeakChatRequest = Body(...)):
 
 
 @router.post("/chat/stop")
-async def stop_did_agent_stream(req: StopStreamRequest = Body(...)):
+async def stop_did_agent_stream(
+    req: StopStreamRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+):
     """Đóng phiên WebRTC stream với D-ID khi kết thúc hoặc unmount"""
     cfg = _load_did_config()
     headers = _get_headers(cfg["api_key"])
