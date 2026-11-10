@@ -4,22 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VivaArena - Phòng Phản Biện & Tranh Biện Học Thuật AI</title>
-    
-    <!-- Google Fonts: Academic Chamber Typography -->
+    <title>VivaArena — Phòng Phản Biện &amp; Tranh Biện Học Thuật AI</title>
+
+    <!-- Google Fonts: Mint Paper Editorial Typography (Geist, Geist Mono, Instrument Serif + Vietnamese Pairings) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500;1,6..72,600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap"
       rel="stylesheet"
     />
-    <!-- Material Symbols Outlined -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-      rel="stylesheet"
-    />
-    
-    <!-- Tailwind CSS with Academic Chamber Theme -->
+
+    <!-- Tailwind CSS with Mint Paper Light Theme Tokens -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
@@ -27,73 +22,72 @@
         theme: {
           extend: {
             colors: {
-              "primary-fixed": "#9cf2e8",
-              "primary-container": "#0f766e",
-              "error": "#ba1a1a",
-              "surface-dim": "#d2d9f4",
-              "on-primary-fixed-variant": "#00504a",
-              "surface-container": "#eaedff",
-              "on-error": "#ffffff",
-              "inverse-primary": "#80d5cb",
-              "on-tertiary": "#ffffff",
-              "error-container": "#ffdad6",
-              "secondary-fixed-dim": "#93ccff",
+              background: "#f7faf9",
+              surface: "#f7faf9",
+              "surface-bright": "#ffffff",
               "surface-container-lowest": "#ffffff",
-              "on-primary-container": "#a3faef",
-              "on-secondary-fixed-variant": "#004b73",
-              "surface-variant": "#dae2fd",
-              "on-surface-variant": "#3e4947",
-              "on-secondary-fixed": "#001d31",
-              "on-secondary-container": "#00476e",
-              "on-primary-fixed": "#00201d",
-              "inverse-on-surface": "#eef0ff",
-              "on-background": "#131b2e",
-              "on-tertiary-container": "#e6e9ff",
-              "surface-container-high": "#e2e7ff",
-              "surface-tint": "#006a63",
-              "background": "#faf8ff",
-              "on-surface": "#131b2e",
+              "surface-container-low": "#eff5f3",
+              "surface-container": "#e8f0ed",
+              "surface-container-high": "#dce7e4",
+              "surface-container-highest": "#cddbd7",
+              "surface-dim": "#d5e0dd",
+              "surface-variant": "#e8f0ed",
+              "on-background": "#0a1413",
+              "on-surface": "#0a1413",
+              "on-surface-variant": "#465754",
+              "inverse-surface": "#0a1413",
+              "inverse-on-surface": "#f7faf9",
+              primary: "#0b6e5e",
+              "primary-container": "#085448",
               "on-primary": "#ffffff",
-              "tertiary": "#0047bf",
-              "on-tertiary-fixed-variant": "#003ea8",
-              "secondary": "#006398",
-              "primary": "#005c55",
-              "outline": "#6e7977",
-              "surface": "#faf8ff",
-              "on-tertiary-fixed": "#00174b",
-              "inverse-surface": "#283044",
-              "secondary-container": "#5bb8fe",
-              "on-error-container": "#93000a",
-              "outline-variant": "#bdc9c6",
-              "secondary-fixed": "#cce5ff",
-              "surface-bright": "#faf8ff",
-              "tertiary-fixed-dim": "#b4c5ff",
-              "surface-container-low": "#f2f3ff",
+              "on-primary-container": "#dff8f0",
+              "primary-fixed": "#c8f7e8",
+              "primary-fixed-dim": "#6ee7c8",
+              "on-primary-fixed": "#062822",
+              "on-primary-fixed-variant": "#085448",
+              "inverse-primary": "#6ee7c8",
+              "surface-tint": "#0b6e5e",
+              secondary: "#0369a1",
+              "secondary-container": "#38bdf8",
+              "secondary-fixed": "#e0f2fe",
+              "secondary-fixed-dim": "#7dd3fc",
               "on-secondary": "#ffffff",
-              "tertiary-fixed": "#dbe1ff",
-              "primary-fixed-dim": "#80d5cb",
-              "tertiary-container": "#1e5fe7",
-              "surface-container-highest": "#dae2fd"
-            },
-            borderRadius: {
-              "DEFAULT": "0.125rem",
-              "lg": "0.25rem",
-              "xl": "0.5rem",
-              "full": "0.75rem"
+              "on-secondary-container": "#0c4a6e",
+              "on-secondary-fixed": "#082f49",
+              "on-secondary-fixed-variant": "#0369a1",
+              tertiary: "#334155",
+              "tertiary-container": "#1e293b",
+              "tertiary-fixed": "#f1f5f9",
+              "tertiary-fixed-dim": "#cbd5e1",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#f8fafc",
+              "on-tertiary-fixed": "#0f172a",
+              "on-tertiary-fixed-variant": "#334155",
+              error: "#be123c",
+              "error-container": "#ffe4e6",
+              "on-error": "#ffffff",
+              "on-error-container": "#881337",
+              outline: "#556361",
+              "outline-variant": "#c9d6d3",
+              mint: "#6ee7c8",
+              "mint-ink": "#0b6e5e"
             },
             fontFamily: {
-              headline: ["Newsreader", "serif"],
-              display: ["Newsreader", "serif"],
-              body: ["Manrope", "sans-serif"],
-              label: ["Hanken Grotesk", "sans-serif"],
-              accent: ["Plus Jakarta Sans", "sans-serif"]
+              sans: ["Geist", "Be Vietnam Pro", "ui-sans-serif", "system-ui", "sans-serif"],
+              headline: ["Geist", "Be Vietnam Pro", "system-ui", "sans-serif"],
+              display: ["Geist", "Be Vietnam Pro", "system-ui", "sans-serif"],
+              body: ["Geist", "Be Vietnam Pro", "system-ui", "sans-serif"],
+              label: ["Geist", "Be Vietnam Pro", "system-ui", "sans-serif"],
+              accent: ["Geist", "Be Vietnam Pro", "system-ui", "sans-serif"],
+              mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+              serif: ["Instrument Serif", "Newsreader", "Georgia", "serif"]
             }
           }
         }
       };
     </script>
   </head>
-  <body class="bg-background text-on-surface antialiased min-h-screen selection:bg-primary-fixed selection:text-primary">
+  <body class="bg-background text-on-surface antialiased min-h-screen selection:bg-primary-fixed selection:text-on-primary-fixed">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

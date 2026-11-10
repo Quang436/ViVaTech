@@ -1,4 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import {
+  Bookmark,
+  Ear,
+  Radio,
+  RefreshCw,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { api } from '../services/api';
 
 export type ExaminerState = 'LISTENING' | 'SPEAKING';
@@ -16,13 +25,13 @@ export interface LiveAiExaminerProps {
   voiceEnabled?: boolean;
   onToggleVoice?: () => void;
   onStopVoice?: () => void;
+  onFallbackSpeak?: (text: string) => void;
   currentVoice?: string;
   onChangeVoice?: (voiceId: string) => void;
   voiceOptions?: Array<{ id: string; name: string; lang: string }>;
 }
 
-const DEFAULT_PORTRAIT =
-  'https://lh3.googleusercontent.com/aida/AEtjO1WNc-QSq92P90XqXpXf0p-2Qfbozh7HivO8RvhyyXng_l-4j1yV26_Vp_CvKNPpTKWLMs3iKySCjiQuv10M9FNpwAVCHkMt_Jyhmi0wP_-QbHXqCVJh3NYDKkdAcUPgkMsngqbQAAvduhSNF0Jn9V77V-lv1AoEYBOjh0Au7v_dMQ2qN2WzEUKdRjqcdlVy03jP5870fi_wVL6aEjL0tBNxj2zFBTD41jat3hwQgDPX';
+const DEFAULT_PORTRAIT = '/professor_avatar.png';
 
 export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
   speakerName = 'PGS. TS. Trần Thu Hà',
@@ -37,12 +46,14 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
   voiceEnabled = true,
   onToggleVoice,
   onStopVoice,
+  onFallbackSpeak,
   currentVoice = 'vi-VN-NamMinhNeural',
 }) => {
   const [internalState, setInternalState] = useState<ExaminerState>('LISTENING');
   const [connectionStatus, setConnectionStatus] = useState<
     'connecting' | 'connected' | 'error'
   >('connecting');
+  const [isStreamReady, setIsStreamReady] = useState<boolean>(false);
   const [isWebRtcStreamPlaying, setIsWebRtcStreamPlaying] = useState<boolean>(false);
   const [idleVideoSrc, setIdleVideoSrc] = useState<string>('/agent_idle.mp4');
   const [isSavedQuestion, setIsSavedQuestion] = useState(false);
@@ -51,8 +62,36 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
   const idleVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
-  const isInitializingRef = useRef<boolean>(false);
   const speakTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initSeqRef = useRef<number>(0);
+
+  // Refs for latest callback/prop values without recreating WebRTC callbacks
+  const voiceEnabledRef = useRef(voiceEnabled);
+  const currentVoiceRef = useRef(currentVoice);
+  const onStopVoiceRef = useRef(onStopVoice);
+  const onStateChangeRef = useRef(onStateChange);
+  const onFallbackSpeakRef = useRef(onFallbackSpeak);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    currentVoiceRef.current = currentVoice;
+  }, [currentVoice]);
+
+  useEffect(() => {
+    onStopVoiceRef.current = onStopVoice;
+  }, [onStopVoice]);
+
+  useEffect(() => {
+    onStateChangeRef.current = onStateChange;
+  }, [onStateChange]);
+
+  useEffect(() => {
+    onFallbackSpeakRef.current = onFallbackSpeak;
+  }, [onFallbackSpeak]);
+
   const streamInfoRef = useRef<{
     agentId?: string | null;
     chatId?: string | null;
@@ -64,27 +103,25 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
   const questionText = (triggerQuestion ?? textToSpeak ?? '').trim();
 
   const activeState: ExaminerState =
-    internalState === 'SPEAKING' || isWebRtcStreamPlaying
+    internalState === 'SPEAKING' || isWebRtcStreamPlaying || propIsSpeaking
       ? 'SPEAKING'
       : controlledState !== undefined
       ? controlledState
-      : propIsSpeaking
-      ? 'SPEAKING'
       : 'LISTENING';
 
   const isCurrentSpeaking = activeState === 'SPEAKING';
 
-  const updateExaminerState = useCallback(
-    (newState: ExaminerState) => {
-      setInternalState(newState);
-      onStateChange?.(newState);
-    },
-    [onStateChange]
-  );
+  const updateExaminerState = useCallback((newState: ExaminerState) => {
+    setInternalState(newState);
+    onStateChangeRef.current?.(newState);
+  }, []);
 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = !voiceEnabled;
+    }
+    if (!voiceEnabled) {
+      onStopVoiceRef.current?.();
     }
   }, [voiceEnabled]);
 
@@ -118,20 +155,25 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    streamInfoRef.current = null;
+    setIsStreamReady(false);
     setIsWebRtcStreamPlaying(false);
   }, []);
 
   const initDidWebRtc = useCallback(async () => {
-    if (isInitializingRef.current) return;
-    isInitializingRef.current = true;
+    const mySeq = ++initSeqRef.current;
 
     cleanupWebRtc();
     setConnectionStatus('connecting');
 
     try {
       const startData = await api.startDidAgentChat({
-        voice_id: currentVoice || 'vi-VN-NamMinhNeural',
+        voice_id: currentVoiceRef.current || 'vi-VN-NamMinhNeural',
       });
+
+      if (mySeq !== initSeqRef.current) {
+        return;
+      }
 
       const {
         agent_id,
@@ -172,7 +214,7 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
         if (event.streams && event.streams[0] && videoRef.current) {
           if (videoRef.current.srcObject !== event.streams[0]) {
             videoRef.current.srcObject = event.streams[0];
-            videoRef.current.muted = !voiceEnabled;
+            videoRef.current.muted = !voiceEnabledRef.current;
             videoRef.current.play().catch(() => {});
           }
           setConnectionStatus('connected');
@@ -200,7 +242,7 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
         dc.onmessage = (msgEvt) => {
           const raw = String(msgEvt.data || '');
           if (raw.includes('stream/started') || raw.includes('START')) {
-            onStopVoice?.();
+            onStopVoiceRef.current?.();
             setIsWebRtcStreamPlaying(true);
             updateExaminerState('SPEAKING');
           } else if (raw.includes('stream/done') || raw.includes('STOP')) {
@@ -224,41 +266,65 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
         agent_id: agent_id,
       });
 
-      setConnectionStatus('connected');
-    } catch (err: any) {
-      console.warn('D-ID WebRTC fallback:', err?.message);
-      setConnectionStatus('error');
-    } finally {
-      isInitializingRef.current = false;
-    }
-  }, [cleanupWebRtc, currentVoice, onStopVoice, updateExaminerState, voiceEnabled]);
+      if (mySeq !== initSeqRef.current) {
+        return;
+      }
 
+      setConnectionStatus('connected');
+      setIsStreamReady(true);
+    } catch (err: unknown) {
+      if (mySeq !== initSeqRef.current) {
+        return;
+      }
+      console.warn('D-ID WebRTC fallback:', err instanceof Error ? err.message : err);
+      setIsStreamReady(false);
+      setConnectionStatus('error');
+    }
+  }, [cleanupWebRtc, updateExaminerState]);
+
+  // Schedule single init after tiny delay to avoid StrictMode duplicate network requests on mount
   useEffect(() => {
-    initDidWebRtc();
+    const timer = setTimeout(() => {
+      initDidWebRtc();
+    }, 80);
+
     return () => {
+      clearTimeout(timer);
+      initSeqRef.current += 1;
       cleanupWebRtc();
     };
   }, [initDidWebRtc, cleanupWebRtc]);
 
-  // Kích hoạt phát âm thanh D-ID WebRTC khi có câu hỏi mới
+  // Speak question via D-ID WebRTC once ready, or via TTS fallback when D-ID errors
   useEffect(() => {
     if (!questionText || questionText === lastSpokenQuestionRef.current) return;
-    if (!streamInfoRef.current) return;
+
+    if (connectionStatus === 'error') {
+      lastSpokenQuestionRef.current = questionText;
+      if (voiceEnabledRef.current) {
+        onFallbackSpeakRef.current?.(questionText);
+      }
+      return;
+    }
+
+    if (!isStreamReady || !streamInfoRef.current) return;
 
     lastSpokenQuestionRef.current = questionText;
+    const activeStream = streamInfoRef.current;
 
     api
       .speakDidAgent({
-        stream_id: streamInfoRef.current.streamId,
-        session_id: streamInfoRef.current.sessionId,
+        stream_id: activeStream.streamId,
+        session_id: activeStream.sessionId,
         text: questionText,
-        agent_id: streamInfoRef.current.agentId,
-        chat_id: streamInfoRef.current.chatId,
-        voice_id: currentVoice || 'vi-VN-NamMinhNeural',
+        agent_id: activeStream.agentId,
+        chat_id: activeStream.chatId,
+        voice_id: currentVoiceRef.current || 'vi-VN-NamMinhNeural',
       })
       .then(() => {
         setIsWebRtcStreamPlaying(true);
         updateExaminerState('SPEAKING');
+        if (speakTimeoutRef.current) clearTimeout(speakTimeoutRef.current);
         const estimatedMs = Math.min(18000, Math.max(3500, questionText.length * 85));
         speakTimeoutRef.current = setTimeout(() => {
           setIsWebRtcStreamPlaying(false);
@@ -268,23 +334,54 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
       .catch(() => {
         setIsWebRtcStreamPlaying(false);
         updateExaminerState('LISTENING');
+        if (voiceEnabledRef.current) {
+          onFallbackSpeakRef.current?.(questionText);
+        }
       });
-  }, [questionText, currentVoice, updateExaminerState]);
+  }, [questionText, isStreamReady, connectionStatus, updateExaminerState]);
+
+  const handleReplayVoice = () => {
+    if (!questionText) return;
+    lastSpokenQuestionRef.current = '';
+    if (isStreamReady && streamInfoRef.current) {
+      const activeStream = streamInfoRef.current;
+      api
+        .speakDidAgent({
+          stream_id: activeStream.streamId,
+          session_id: activeStream.sessionId,
+          text: questionText,
+          agent_id: activeStream.agentId,
+          chat_id: activeStream.chatId,
+          voice_id: currentVoiceRef.current || 'vi-VN-NamMinhNeural',
+        })
+        .catch(() => {
+          onFallbackSpeakRef.current?.(questionText);
+        });
+    } else {
+      onFallbackSpeakRef.current?.(questionText);
+    }
+  };
 
   return (
-    <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+    <div className="mint-card mint-card-hover p-6 flex flex-col justify-between h-full">
       <div>
         {/* ================= KHUNG CAMERA GIÁM KHẢO AI WEBRTC ================= */}
-        <div className="relative w-full rounded-xl overflow-hidden border border-primary/20 bg-slate-900 shadow-sm group select-none">
+        <div className="relative w-full rounded-2xl overflow-hidden border border-[rgba(11,110,94,0.22)] bg-[#0f1c1a] shadow-xs group">
           <div className="relative aspect-[16/10] w-full overflow-hidden flex items-center justify-center">
-            {/* LỚP 1: Chân dung Giám khảo Giáo sư xuất hiện ngay lập tức 0ms */}
+            {/* Layer 1: High-res Local Examiner Portrait */}
             <img
               src={DEFAULT_PORTRAIT}
               alt={speakerName}
-              className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105 z-1"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.endsWith('/avatars/examiner-id.jpg')) {
+                  target.src = '/avatars/examiner-id.jpg';
+                }
+              }}
+              className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105 z-[1]"
             />
 
-            {/* LỚP 2: Video cử động tự nhiên khi lắng nghe */}
+            {/* Layer 2: Natural Idle Looping Video */}
             <video
               ref={idleVideoRef}
               src={idleVideoSrc}
@@ -292,80 +389,100 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
               loop
               muted
               playsInline
-              className="absolute inset-0 w-full h-full object-cover z-2 opacity-90 transition-opacity duration-300"
+              className="absolute inset-0 w-full h-full object-cover z-[2] opacity-90 transition-opacity duration-300"
             />
 
-            {/* LỚP 3: Luồng WebRTC khi phát biểu */}
+            {/* Layer 3: WebRTC Talking Stream */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              className={`absolute inset-0 w-full h-full object-cover z-3 transition-opacity duration-300 ${
+              className={`absolute inset-0 w-full h-full object-cover z-[3] transition-opacity duration-300 ${
                 isWebRtcStreamPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             />
 
-            {/* Overlay thông tin chân dung phía dưới */}
-            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/45 to-transparent flex items-center justify-between z-10">
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 text-xs font-label">
+            {/* Bottom Portrait HUD Overlay */}
+            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-[#0a1413]/90 via-[#0a1413]/50 to-transparent flex items-center justify-between gap-2 z-10">
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#0a1413]/75 backdrop-blur-md text-white border border-white/15 text-xs font-sans min-w-0">
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-2 h-2 rounded-full shrink-0 ${
                     isCurrentSpeaking
-                      ? 'bg-amber-400 animate-pulse'
-                      : 'bg-emerald-400 animate-pulse'
+                      ? 'bg-[#f59e0b] anim-live-pulse'
+                      : 'bg-[#6ee7c8] anim-live-pulse'
                   }`}
-                ></span>
-                <span className="font-medium">
-                  {speakerName} • {isCurrentSpeaking ? 'Đang chất vấn' : 'Trực tiếp'}
+                  aria-hidden="true"
+                />
+                <span className="font-medium truncate">
+                  {speakerName} · {isCurrentSpeaking ? 'Đang chất vấn' : 'Trực tiếp'}
                 </span>
                 {councilRole && (
-                  <span className="hidden sm:inline text-[10px] text-white/70">
+                  <span className="hidden sm:inline text-[10px] text-white/75 truncate">
                     ({councilRole})
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5">
-                {onToggleVoice && (
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {questionText && (
                   <button
-                    onClick={onToggleVoice}
-                    className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/10 cursor-pointer"
-                    title={voiceEnabled ? 'Tắt giọng nói AI' : 'Bật giọng nói AI'}
+                    type="button"
+                    onClick={handleReplayVoice}
+                    aria-label="Đọc lại câu hỏi chất vấn"
+                    className="w-8 h-8 rounded-full bg-[#0a1413]/75 hover:bg-[#0a1413] text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/15 cursor-pointer"
+                    title="Đọc lại câu hỏi"
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {voiceEnabled ? 'volume_up' : 'volume_off'}
-                    </span>
+                    <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
                   </button>
                 )}
+
+                {onToggleVoice && (
+                  <button
+                    type="button"
+                    aria-label="Âm thanh giám khảo AI"
+                    aria-pressed={voiceEnabled}
+                    onClick={onToggleVoice}
+                    className="w-8 h-8 rounded-full bg-[#0a1413]/75 hover:bg-[#0a1413] text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/15 cursor-pointer"
+                    title={voiceEnabled ? 'Đang bật giọng nói AI (nhấn để tắt)' : 'Đang tắt giọng nói AI (nhấn để bật)'}
+                  >
+                    {voiceEnabled ? (
+                      <Volume2 className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <VolumeX className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+
                 <button
-                  onClick={initDidWebRtc}
-                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/10 cursor-pointer"
+                  type="button"
+                  aria-label="Kết nối lại luồng video giám khảo AI"
+                  onClick={() => initDidWebRtc()}
+                  className="w-8 h-8 rounded-full bg-[#0a1413]/75 hover:bg-[#0a1413] text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/15 cursor-pointer"
                   title={`Làm mới luồng video AI (${connectionStatus})`}
                 >
-                  <span className="material-symbols-outlined text-base">refresh</span>
+                  <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Khung Câu Hỏi Chất Vấn */}
+        {/* Câu hỏi chất vấn */}
         <div className="mt-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-label uppercase tracking-wider text-on-surface-variant font-bold block">
-              Câu hỏi chất vấn
-            </span>
+            <span className="mint-eyebrow block">Câu hỏi chất vấn</span>
             {isCurrentSpeaking && audioVolume > 0 && (
-              <span className="text-[10px] font-mono text-primary font-bold">
-                Level: {(audioVolume * 100).toFixed(0)}%
+              <span className="text-[10px] font-mono text-[#0b6e5e] font-semibold">
+                Mức âm: {(audioVolume * 100).toFixed(0)}%
               </span>
             )}
           </div>
-          <div className="bg-surface-container-low/70 border-l-4 border-primary rounded-r-xl rounded-bl-xl p-4 shadow-xs">
-            <blockquote className="font-headline text-on-surface text-base sm:text-lg italic leading-relaxed">
+          <div className="bg-[#eff5f3] border-l-4 border-[#0b6e5e] rounded-r-2xl rounded-bl-2xl p-4">
+            <blockquote className="font-serif text-[#0a1413] text-base sm:text-lg italic leading-relaxed m-0">
               {questionText ? (
                 `“${questionText}”`
               ) : (
-                <span className="text-on-surface-variant">
+                <span className="text-[#465754]">
                   “Hội đồng đang chuẩn bị câu hỏi phản biện đối ứng từ tài liệu đề án của bạn...”
                 </span>
               )}
@@ -374,11 +491,13 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
         </div>
       </div>
 
-      <div className="mt-5 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
-        <span className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[16px] text-primary">
-            {isCurrentSpeaking ? 'record_voice_over' : 'hearing'}
-          </span>
+      <div className="mt-5 pt-3.5 border-t border-[rgba(10,20,19,0.08)] flex items-center justify-between text-xs font-sans text-[#465754]">
+        <span className="inline-flex items-center gap-1.5">
+          {isCurrentSpeaking ? (
+            <Radio className="w-4 h-4 text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <Ear className="w-4 h-4 text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
+          )}
           <span>
             {isThinking
               ? 'Hội đồng đang suy luận CoT...'
@@ -388,17 +507,18 @@ export const LiveAiExaminer: React.FC<LiveAiExaminerProps> = ({
           </span>
         </span>
         <button
+          type="button"
+          aria-pressed={isSavedQuestion}
+          aria-label="Lưu câu hỏi này"
           onClick={() => setIsSavedQuestion(!isSavedQuestion)}
-          className="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors cursor-pointer border-none bg-transparent"
+          className="p-1.5 rounded-full hover:bg-[#eff5f3] text-[#465754] transition-colors cursor-pointer border-none bg-transparent"
           title={isSavedQuestion ? 'Đã lưu câu hỏi' : 'Lưu câu hỏi'}
         >
-          <span
-            className={`material-symbols-outlined text-base ${
-              isSavedQuestion ? 'text-primary' : ''
-            }`}
-          >
-            {isSavedQuestion ? 'bookmark' : 'bookmark_border'}
-          </span>
+          <Bookmark
+            className={`w-4 h-4 ${isSavedQuestion ? 'text-[#0b6e5e] fill-[#6ee7c8]' : ''}`}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
         </button>
       </div>
     </div>

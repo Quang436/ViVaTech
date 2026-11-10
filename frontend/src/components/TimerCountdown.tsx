@@ -37,7 +37,7 @@ export const TimerCountdown: React.FC<TimerCountdownProps> = ({
 
   const percentage = Math.max(0, (timeLeft / initialSeconds) * 100);
   const isUrgent = timeLeft <= 15;
-  const timerColor = timeLeft > 30 ? '#10b981' : timeLeft > 15 ? '#f59e0b' : '#f43f5e';
+  const timerColor = timeLeft > 30 ? '#0b6e5e' : timeLeft > 15 ? '#b45309' : '#be123c';
 
   return (
     <div
@@ -45,37 +45,35 @@ export const TimerCountdown: React.FC<TimerCountdownProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        background: 'rgba(15, 23, 42, 0.7)',
-        border: `1px solid ${isUrgent ? '#f43f5e' : 'var(--border-subtle)'}`,
-        borderRadius: '12px',
+        background: '#eff5f3',
+        border: `1px solid ${isUrgent ? 'rgba(190, 18, 60, 0.35)' : 'rgba(10, 20, 19, 0.12)'}`,
+        borderRadius: '9999px',
         padding: '8px 16px',
-        boxShadow: isUrgent ? '0 0 15px rgba(244, 63, 94, 0.3)' : 'none',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.25s ease',
       }}
     >
-      <Clock size={16} color={timerColor} />
+      <Clock size={16} color={timerColor} aria-hidden="true" />
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Thời gian phản biện:</span>
+          <span style={{ fontSize: '11px', color: '#465754' }}>Thời gian phản biện:</span>
           <span
             style={{
               fontSize: '14px',
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'var(--mono)',
               fontWeight: 700,
               color: timerColor,
             }}
           >
             00:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}s
           </span>
-          {isUrgent && <AlertTriangle size={14} color="#f43f5e" className="animate-bounce" />}
+          {isUrgent && <AlertTriangle size={14} color="#be123c" aria-hidden="true" />}
         </div>
-        {/* Progress bar */}
         <div
           style={{
             width: '120px',
             height: '4px',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '2px',
+            background: '#dce7e4',
+            borderRadius: '9999px',
             overflow: 'hidden',
             marginTop: '4px',
           }}

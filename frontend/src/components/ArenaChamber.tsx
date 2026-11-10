@@ -1,4 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  ArrowRight,
+  BrainCircuit,
+  Gauge,
+  Lightbulb,
+  Loader2,
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  Send,
+  Timer,
+  Zap,
+} from 'lucide-react';
 import type { DebateSession, CouncilPersona } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
@@ -23,10 +37,11 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
 }) => {
   const [inputText, setInputText] = useState('');
   const [modeUsed, setModeUsed] = useState<'voice' | 'text'>('text');
-  const [turnStartTime, setTurnStartTime] = useState<number>(Date.now());
-  const [firstInputTime, setFirstInputTime] = useState<number | null>(null);
+  const [elapsedTurnSeconds, setElapsedTurnSeconds] = useState<number>(1);
+  const [firstInputOffsetSec, setFirstInputOffsetSec] = useState<number | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(60);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
+  const turnStartTimeRef = useRef<number>(0);
 
   const {
     isListening,
@@ -37,9 +52,9 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
   } = useSpeechRecognition();
 
   const {
-    speak,
-    isSpeaking,
+    isSpeaking: isFallbackSpeaking,
     audioVolume,
+    speak: speakFallback,
     stop: stopSpeaking,
     currentVoice,
     setCurrentVoice,
@@ -53,30 +68,33 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     }
   }, [persona, setCurrentVoice]);
 
-  // Reset khi sang lượt mới
+  // Reset per debate turn
   useEffect(() => {
-    setTurnStartTime(Date.now());
-    setFirstInputTime(null);
+    turnStartTimeRef.current = Date.now();
+    setElapsedTurnSeconds(1);
+    setFirstInputOffsetSec(null);
     setInputText('');
     setCountdownSeconds(60);
     setIsTimerPaused(false);
     resetTranscript();
   }, [session.current_turn, resetTranscript]);
 
-  // Đồng bộ giọng nói vào ô nhập văn bản
+  // Sync voice transcript to response input
   useEffect(() => {
     if (transcript) {
-      if (!firstInputTime) setFirstInputTime(Date.now());
+      const startMs = turnStartTimeRef.current || Date.now();
+      setFirstInputOffsetSec((prev) => prev ?? Math.max(0.1, (Date.now() - startMs) / 1000));
       setInputText(transcript);
       setModeUsed('voice');
     }
-  }, [transcript, firstInputTime]);
+  }, [transcript]);
 
-  // Bộ đếm thời gian phản xạ
+  // Reaction timer countdown
   useEffect(() => {
     if (isTimerPaused || isCouncilThinking) return;
     const interval = setInterval(() => {
       setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      setElapsedTurnSeconds((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
   }, [isTimerPaused, isCouncilThinking]);
@@ -86,7 +104,8 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       stopListening();
     } else {
       stopSpeaking();
-      if (!firstInputTime) setFirstInputTime(Date.now());
+      const startMs = turnStartTimeRef.current || Date.now();
+      setFirstInputOffsetSec((prev) => prev ?? Math.max(0.1, (Date.now() - startMs) / 1000));
       startListening();
       setModeUsed('voice');
     }
@@ -99,9 +118,27 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
     if (isListening) {
       stopListening();
     }
+    stopSpeaking();
 
-    const duration = Math.max(1, Math.round((Date.now() - turnStartTime) / 1000));
+    const startMs = turnStartTimeRef.current || Date.now();
+    const duration = Math.max(1, Math.round((Date.now() - startMs) / 1000));
     await onSubmitTurn(finalContent, modeUsed, duration);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void handleSubmit();
+  };
+
+  // IME-safe Enter-to-submit handler (keeps Shift+Enter for multiline typing)
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (e.nativeEvent.isComposing || e.keyCode === 229) {
+        return;
+      }
+      e.currentTarget.form?.requestSubmit();
+    }
   };
 
   const currentTurnObj = session.turns.find((t) => t.turn_number === session.current_turn);
@@ -124,7 +161,8 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       ? 'Chủ tịch Hội đồng Stress-Test'
       : 'Hội đồng Viện AI Quốc gia';
 
-  // Dữ liệu CoT thực tế từ lượt chất vấn hiện tại
+  // Live CoT data from current or previous turn
+  const activeCot = currentTurnObj?.ai_thought_process ?? prevTurnObj?.ai_thought_process;
   const latestAccuracy =
     currentTurnObj?.ground_truth_accuracy ?? prevTurnObj?.ground_truth_accuracy ?? 82;
   const latestFlaws =
@@ -133,49 +171,75 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       : prevTurnObj?.logic_flaws) || [];
 
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
-  const activeSeconds = firstInputTime
-    ? Math.max(1, (Date.now() - firstInputTime) / 1000)
-    : Math.max(1, (Date.now() - turnStartTime) / 1000);
+  const activeSeconds =
+    firstInputOffsetSec !== null
+      ? Math.max(1, elapsedTurnSeconds - firstInputOffsetSec)
+      : Math.max(1, elapsedTurnSeconds);
   const wordsPerMinute = wordCount > 0 ? Math.round((wordCount / activeSeconds) * 60) : 128;
-  const latencySec = firstInputTime
-    ? ((firstInputTime - turnStartTime) / 1000).toFixed(2)
-    : '0.42';
+  const latencySec = firstInputOffsetSec !== null ? firstInputOffsetSec.toFixed(2) : '0.42';
+
+  const isLowTime = countdownSeconds <= 15;
 
   return (
-    <div className="w-full flex-1 flex flex-col pt-16 relative z-10">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="w-full flex-1 flex flex-col relative z-10 outline-none"
+    >
       {/* ================= SESSION STATUS & TIMER BAR ================= */}
-      <div className="bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 py-3.5 px-4 sm:px-6 lg:px-8 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <span className="px-3 py-1 rounded-full bg-primary-fixed/40 text-on-primary-fixed-variant font-label text-xs font-bold uppercase tracking-wider border border-primary-fixed-dim/50 shadow-xs">
+      <div className="bg-white/90 backdrop-blur-md border-b border-[rgba(10,20,19,0.08)] py-4">
+        <div className="mint-wrap flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="mint-tag mint shrink-0">
               Lượt {session.current_turn} / {session.max_turns}
             </span>
-            <div>
-              <h1 className="font-headline font-semibold text-lg sm:text-xl text-on-surface leading-tight">
+            <div className="min-w-0">
+              <h1 className="font-sans font-semibold text-base sm:text-lg text-[#0a1413] leading-tight truncate">
                 Chủ đề: {session.title}
               </h1>
-              <p className="text-xs text-on-surface-variant font-body">
+              <p className="text-xs text-[#465754] font-sans mt-0.5">
                 Hội đồng đang kiểm chứng tính hợp lý của phương pháp luận khoa học
               </p>
             </div>
           </div>
 
           {/* Timer & Session Actions */}
-          <div className="flex items-center gap-3 self-end md:self-center">
-            <div className="flex items-center gap-2 bg-surface-container-low border border-primary/20 px-4 py-1.5 rounded-full text-xs font-label text-on-surface shadow-xs anim-timer-tick">
-              <span className="material-symbols-outlined text-[17px] text-primary">timer</span>
-              <span className="text-on-surface-variant">Thời gian phản xạ:</span>
-              <span className="font-bold text-primary font-mono text-sm tracking-wide">
+          <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+            <div
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-sans border ${
+                isLowTime
+                  ? 'bg-[#ffe4e6] border-[#be123c]/30 text-[#881337]'
+                  : 'bg-[#eff5f3] border-[rgba(11,110,94,0.22)] text-[#0a1413]'
+              }`}
+            >
+              <Timer
+                className={`w-4 h-4 ${isLowTime ? 'text-[#be123c]' : 'text-[#0b6e5e]'}`}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <span className="text-[#465754]">Phản xạ:</span>
+              <span
+                className={`font-bold font-mono text-sm tracking-wide ${
+                  isLowTime ? 'text-[#be123c]' : 'text-[#0b6e5e]'
+                }`}
+              >
                 00:{countdownSeconds < 10 ? `0${countdownSeconds}` : countdownSeconds}s
               </span>
             </div>
             <button
+              type="button"
               onClick={() => setIsTimerPaused(!isTimerPaused)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-container-high bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-label text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border font-sans text-xs font-medium transition-all cursor-pointer ${
+                isTimerPaused
+                  ? 'border-[rgba(11,110,94,0.3)] bg-[rgba(110,231,200,0.24)] text-[#064037]'
+                  : 'border-[rgba(10,20,19,0.14)] bg-white hover:bg-[#eff5f3] text-[#0a1413]'
+              }`}
             >
-              <span className="material-symbols-outlined text-base text-on-surface-variant">
-                {isTimerPaused ? 'play_arrow' : 'pause'}
-              </span>
+              {isTimerPaused ? (
+                <Play className="w-3.5 h-3.5" strokeWidth={2.1} aria-hidden="true" />
+              ) : (
+                <Pause className="w-3.5 h-3.5" strokeWidth={2.1} aria-hidden="true" />
+              )}
               <span>{isTimerPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
             </button>
           </div>
@@ -183,244 +247,257 @@ export const ArenaChamber: React.FC<ArenaChamberProps> = ({
       </div>
 
       {/* ================= 3-COLUMN LIVE DEBATE ROOM ================= */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full flex-1">
+      <div className="mint-wrap py-7 sm:py-9 flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* CỘT 1: HUMANOID AI EXAMINER (DIGITAL HUMAN AVATAR LIVE FEED) */}
-          <section className="lg:col-span-4 flex flex-col">
+          {/* CỘT 1: HUMANOID AI EXAMINER (WEBRTC STREAMING + TTS FALLBACK) */}
+          <section className="lg:col-span-4 flex flex-col" aria-label="Giám khảo AI trực tiếp">
             <LiveAiExaminer
               speakerName={personaSpeakerName}
               councilRole={personaCouncilRole}
               triggerQuestion={aiQuestion}
+              isSpeaking={isFallbackSpeaking}
               isThinking={isCouncilThinking}
+              audioVolume={audioVolume}
               voiceEnabled={voiceEnabled}
               onToggleVoice={onToggleVoice}
               onStopVoice={stopSpeaking}
+              onFallbackSpeak={(text) => {
+                void speakFallback(text);
+              }}
               currentVoice={currentVoice}
             />
           </section>
 
           {/* CỘT 2: TIẾN TRÌNH PHÂN TÍCH AI CoT 3 BƯỚC */}
           <section className="lg:col-span-4 flex flex-col">
-            <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+            <div className="mint-card mint-card-hover p-6 flex flex-col justify-between h-full">
               <div>
-                <div className="flex items-center justify-between pb-4 border-b border-surface-container-high/60">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined text-lg">psychology</span>
+                <div className="flex items-center justify-between pb-4 border-b border-[rgba(10,20,19,0.08)] gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[rgba(110,231,200,0.22)] border border-[rgba(11,110,94,0.2)] flex items-center justify-center text-[#085448]">
+                      <BrainCircuit className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
                     </div>
                     <div>
-                      <h2 className="font-headline font-semibold text-lg text-on-surface leading-none">
+                      <h2 className="font-sans font-semibold text-base sm:text-lg text-[#0a1413] leading-none">
                         Tiến trình Phân tích AI
                       </h2>
-                      <span className="font-label text-xs text-on-surface-variant font-medium">
-                        Suy luận ngữ cảnh thời gian thực
+                      <span className="font-mono text-[11px] text-[#556361] mt-1 block">
+                        Suy luận CoT thời gian thực
                       </span>
                     </div>
                   </div>
-                  <span className="font-label text-xs font-semibold text-primary bg-primary-fixed/30 px-2.5 py-1 rounded-full border border-primary-fixed-dim/40">
-                    CoT Active
-                  </span>
+                  <span className="mint-tag mint shrink-0">CoT Active</span>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-3">
                   {/* BƯỚC 1: ĐỐI CHIẾU TÀI LIỆU */}
-                  <div className="p-3.5 rounded-xl border border-primary/20 bg-primary-fixed/15">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-label text-xs font-bold text-primary flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">
+                  <div className="p-3.5 rounded-2xl border border-[rgba(11,110,94,0.22)] bg-[rgba(110,231,200,0.12)]">
+                    <div className="flex items-center justify-between mb-1.5 gap-2">
+                      <span className="font-sans text-xs font-semibold text-[#085448] flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-[#085448] text-white font-mono flex items-center justify-center text-[10px]">
                           1
                         </span>
                         Đối chiếu tài liệu
                       </span>
-                      <span className="text-[11px] font-label font-bold text-primary bg-surface-container-lowest px-2 py-0.5 rounded-full shadow-2xs border border-primary/15">
+                      <span className="text-[11px] font-mono font-semibold text-[#085448] bg-white px-2.5 py-0.5 rounded-full border border-[rgba(11,110,94,0.2)]">
                         Khớp {latestAccuracy}%
                       </span>
                     </div>
-                    <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-                      {currentTurnObj?.ground_truth_coverage
-                        ? `Trích xuất phân đoạn: ${currentTurnObj.ground_truth_coverage.slice(0, 110)}...`
-                        : `Khái niệm đối chiếu với văn bản đề án đã nạp, đối soát định lượng các chỉ số.`}
+                    <p className="font-sans text-xs text-[#465754] leading-relaxed">
+                      {activeCot?.step1_fact_check
+                        ? activeCot.step1_fact_check
+                        : 'Đang đối chiếu câu hỏi và lập luận của bạn với các phân đoạn RAG trong tài liệu đề án.'}
                     </p>
                   </div>
 
                   {/* BƯỚC 2: ĐIỂM CẦN LÀM RÕ */}
-                  <div className="p-3.5 rounded-xl border border-secondary/25 bg-secondary-fixed/20">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-label text-xs font-bold text-secondary flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-secondary text-white flex items-center justify-center text-[10px]">
+                  <div className="p-3.5 rounded-2xl border border-[rgba(3,105,161,0.2)] bg-[#e0f2fe]/55">
+                    <div className="flex items-center justify-between mb-1.5 gap-2">
+                      <span className="font-sans text-xs font-semibold text-[#0369a1] flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-[#0369a1] text-white font-mono flex items-center justify-center text-[10px]">
                           2
                         </span>
                         Điểm cần làm rõ
                       </span>
-                      <span className="text-[11px] font-label font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/80">
-                        {latestFlaws.length > 0 ? 'Phát hiện lỗ hổng' : 'Khoảng trống logic'}
+                      <span
+                        className={`text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full border ${
+                          latestFlaws.length > 0
+                            ? 'text-[#be123c] bg-[#ffe4e6] border-[#be123c]/25'
+                            : 'text-[#0369a1] bg-white border-[rgba(3,105,161,0.2)]'
+                        }`}
+                      >
+                        {latestFlaws.length > 0 ? 'Phát hiện lỗ hổng' : 'Điểm xoáy sâu'}
                       </span>
                     </div>
-                    <p className="font-body text-xs text-on-surface-variant leading-relaxed">
+                    <p className="font-sans text-xs text-[#465754] leading-relaxed">
                       {latestFlaws.length > 0
                         ? latestFlaws[0]
-                        : 'Cần làm rõ cơ chế hội tụ toán học, giải pháp phần cứng khi triển khai thực tế.'}
+                        : 'Cần làm rõ cơ chế phương pháp luận, bằng chứng thực nghiệm và giới hạn triển khai thực tế.'}
                     </p>
                   </div>
 
                   {/* BƯỚC 3: HƯỚNG TRUY VẤN TIẾP THEO */}
-                  <div className="p-3.5 rounded-xl border border-tertiary/20 bg-tertiary-fixed/20">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-label text-xs font-bold text-tertiary flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-tertiary text-white flex items-center justify-center text-[10px]">
+                  <div className="p-3.5 rounded-2xl border border-[rgba(10,20,19,0.1)] bg-[#eff5f3]">
+                    <div className="flex items-center justify-between mb-1.5 gap-2">
+                      <span className="font-sans text-xs font-semibold text-[#0a1413] flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-[#0a1413] text-white font-mono flex items-center justify-center text-[10px]">
                           3
                         </span>
                         Hướng truy vấn tiếp theo
                       </span>
-                      <span className="text-[11px] font-label font-medium text-tertiary bg-surface-container-lowest px-2 py-0.5 rounded-full border border-tertiary/15">
+                      <span className="text-[11px] font-mono font-medium text-[#334155] bg-white px-2.5 py-0.5 rounded-full border border-[rgba(10,20,19,0.1)]">
                         Socratic
                       </span>
                     </div>
-                    <p className="font-body text-xs text-on-surface-variant leading-relaxed">
-                      Kiểm tra khả năng chịu áp lực với trường hợp biên (Edge Cases) và đánh giá độ phức
-                      tạp tính toán O(V+E).
+                    <p className="font-sans text-xs text-[#465754] leading-relaxed">
+                      {activeCot?.step3_rebuttal_strategy
+                        ? activeCot.step3_rebuttal_strategy
+                        : 'Kiểm tra khả năng chịu áp lực với trường hợp biên (Edge Cases) và bảo vệ luận điểm dưới góc nhìn phản biện.'}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
+              <div className="mt-5 pt-3.5 border-t border-[rgba(10,20,19,0.08)] flex items-center justify-between text-xs font-sans text-[#465754]">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-primary"></span>
+                  <span className="w-2 h-2 rounded-full bg-[#6ee7c8] border border-[#0b6e5e]" aria-hidden="true" />
                   Đồng bộ dữ liệu phiên bảo vệ
                 </span>
-                <span className="text-primary font-medium text-[11px]">Tự động cập nhật</span>
+                <span className="text-[#0b6e5e] font-mono text-[11px] font-medium">Tự động cập nhật</span>
               </div>
             </div>
           </section>
 
           {/* CỘT 3: PHÁT BIỂU CỦA THÍ SINH */}
           <section className="lg:col-span-4 flex flex-col">
-            <div className="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+            <form
+              onSubmit={handleFormSubmit}
+              className="mint-card mint-card-hover p-6 flex flex-col justify-between h-full"
+            >
               <div>
-                <div className="flex items-center justify-between pb-3.5 border-b border-surface-container-high/60">
+                <div className="flex items-center justify-between pb-3.5 border-b border-[rgba(10,20,19,0.08)] gap-2">
                   <div className="flex items-center gap-2">
                     <span
                       className={`w-2.5 h-2.5 rounded-full ${
-                        isListening ? 'bg-rose-500 animate-ping' : 'bg-primary'
+                        isListening
+                          ? 'bg-[#be123c] anim-live-pulse'
+                          : 'bg-[#6ee7c8] border border-[#0b6e5e]'
                       }`}
-                    ></span>
-                    <h3 className="font-headline font-semibold text-lg text-on-surface">
+                      aria-hidden="true"
+                    />
+                    <h2 className="font-sans font-semibold text-base sm:text-lg text-[#0a1413]">
                       Phát biểu của bạn
-                    </h3>
+                    </h2>
                   </div>
                   <button
+                    type="button"
                     onClick={handleMicToggle}
-                    className={`px-2.5 py-1 rounded-full border font-label font-semibold text-xs flex items-center gap-1 cursor-pointer transition-all ${
+                    className={`px-3 py-1.5 rounded-full border font-sans font-medium text-xs inline-flex items-center gap-1.5 cursor-pointer transition-all ${
                       isListening
-                        ? 'bg-rose-50 text-rose-600 border-rose-200'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border-surface-container-high'
+                        ? 'bg-[#ffe4e6] text-[#be123c] border-[#be123c]/30'
+                        : 'bg-[#eff5f3] text-[#0a1413] hover:bg-[#e8f0ed] border-[rgba(10,20,19,0.12)]'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-xs">
-                      {isListening ? 'mic' : 'mic_none'}
-                    </span>
-                    <span>{isListening ? 'Đang thu âm...' : 'Bật Micro'}</span>
+                    {isListening ? (
+                      <Mic className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <MicOff className="w-3.5 h-3.5 text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
+                    )}
+                    <span>{isListening ? 'Dừng thu âm' : 'Bật Micro'}</span>
                   </button>
                 </div>
 
-                <div className="my-4 flex items-center justify-between px-3 py-2 rounded-xl bg-surface-container-low/60 border border-surface-container-high/50 text-xs font-label text-on-surface-variant">
+                <div className="my-4 flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)] text-xs font-sans text-[#465754]">
                   <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[15px] text-secondary">speed</span>
+                    <Gauge className="w-3.5 h-3.5 text-[#0369a1]" strokeWidth={2} aria-hidden="true" />
                     <span>
-                      Tốc độ: <strong className="text-on-surface font-semibold">{wordsPerMinute} từ/phút</strong>
+                      Tốc độ:{' '}
+                      <strong className="text-[#0a1413] font-mono font-semibold">
+                        {wordsPerMinute} từ/phút
+                      </strong>
                     </span>
                   </div>
-                  <div className="h-3 w-px bg-surface-container-high"></div>
+                  <div className="h-3.5 w-px bg-[rgba(10,20,19,0.12)]" aria-hidden="true" />
                   <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[15px] text-primary">bolt</span>
+                    <Zap className="w-3.5 h-3.5 text-[#0b6e5e]" strokeWidth={2} aria-hidden="true" />
                     <span>
-                      Độ trễ: <strong className="text-on-surface font-semibold">{latencySec}s</strong>
+                      Độ trễ:{' '}
+                      <strong className="text-[#0a1413] font-mono font-semibold">{latencySec}s</strong>
                     </span>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-xs font-label">
-                    <label className="font-semibold text-on-surface" htmlFor="responseInput">
+                  <div className="flex items-center justify-between text-xs font-sans gap-2 flex-wrap">
+                    <label className="font-semibold text-[#0a1413]" htmlFor="responseInput">
                       Nội dung phản biện trực tiếp
                     </label>
-                    <span className="text-[11px] text-on-surface-variant">Giọng nói &amp; Gõ phím</span>
+                    <span className="font-mono text-[10px] text-[#556361]">
+                      Enter gửi · Shift+Enter xuống dòng
+                    </span>
                   </div>
-                  <div className="relative rounded-xl border border-surface-container-high bg-surface-container-lowest p-3.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary-fixed/50 transition-all shadow-xs">
+                  <div className="relative rounded-2xl border border-[rgba(10,20,19,0.14)] bg-[#f7faf9] p-3.5 focus-within:bg-white focus-within:border-[#0b6e5e] input-focus-glow transition-all">
                     <textarea
                       id="responseInput"
                       rows={5}
                       value={inputText}
+                      onKeyDown={handleTextareaKeyDown}
                       onChange={(e) => {
-                        if (!firstInputTime) setFirstInputTime(Date.now());
+                        const startMs = turnStartTimeRef.current || Date.now();
+                        setFirstInputOffsetSec(
+                          (prev) => prev ?? Math.max(0.1, (Date.now() - startMs) / 1000)
+                        );
                         setInputText(e.target.value);
                         setModeUsed('text');
                       }}
                       placeholder="Nói vào micro hoặc nhập câu trả lời của bạn tại đây để gửi cho Hội đồng..."
-                      className="w-full bg-transparent text-on-surface text-sm focus:outline-none resize-none leading-relaxed border-none p-0 font-body placeholder:text-on-surface-variant/60"
+                      className="w-full bg-transparent text-[#0a1413] text-sm leading-relaxed border-none p-0 font-sans placeholder:text-[#556361]/70 resize-y min-h-[120px] focus:outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="mt-3.5 p-2.5 rounded-xl bg-surface-container-low/50 border border-surface-container-high/40 text-xs font-body text-on-surface-variant flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-primary flex-shrink-0">
-                    tips_and_updates
-                  </span>
-                  <span>
-                    <strong>Mẹo PREP:</strong> Luận điểm (Point) → Lý do (Reason) → Dẫn chứng (Example) → Kết luận (Point).
+                <div className="mt-3.5 p-3 rounded-xl bg-[#eff5f3] border border-[rgba(10,20,19,0.08)] text-xs font-sans text-[#465754] flex items-start gap-2">
+                  <Lightbulb
+                    className="w-4 h-4 text-[#0b6e5e] flex-shrink-0 mt-0.5"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                  <span className="leading-relaxed">
+                    <strong className="text-[#0a1413]">Mẹo PREP:</strong> Luận điểm (Point)
+                    <ArrowRight className="w-3 h-3 inline mx-1 text-[#0b6e5e]" strokeWidth={2.2} aria-hidden="true" />
+                    Lý do (Reason)
+                    <ArrowRight className="w-3 h-3 inline mx-1 text-[#0b6e5e]" strokeWidth={2.2} aria-hidden="true" />
+                    Dẫn chứng (Example)
+                    <ArrowRight className="w-3 h-3 inline mx-1 text-[#0b6e5e]" strokeWidth={2.2} aria-hidden="true" />
+                    Kết luận (Point).
                   </span>
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-surface-container-high/60">
+              <div className="mt-5 pt-3.5 border-t border-[rgba(10,20,19,0.08)]">
                 <button
                   id="submitResponseBtn"
-                  onClick={handleSubmit}
+                  type="submit"
                   disabled={!inputText.trim() || isCouncilThinking}
-                  className="w-full py-3.5 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md active:scale-[0.99] cursor-pointer border-none disabled:opacity-50"
+                  className="btn-mint-primary w-full py-3.5 px-5 text-sm cursor-pointer disabled:opacity-50"
                 >
                   {isCouncilThinking ? (
                     <>
-                      <span className="material-symbols-outlined text-lg animate-spin">
-                        progress_activity
-                      </span>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#6ee7c8]" strokeWidth={2} aria-hidden="true" />
                       <span>Hội đồng đang chất vấn...</span>
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-lg">send</span>
+                      <Send className="w-4 h-4 text-[#6ee7c8]" strokeWidth={2} aria-hidden="true" />
                       <span>Gửi phát biểu cho Hội đồng</span>
                     </>
                   )}
                 </button>
               </div>
-            </div>
+            </form>
           </section>
         </div>
       </div>
-
-      {/* ================= MINIMAL CLEAN FOOTER ================= */}
-      <footer className="bg-surface-container-lowest/90 backdrop-blur-sm border-t border-surface-container-high/60 py-4 px-4 sm:px-6 lg:px-8 relative z-10 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-label text-on-surface-variant">
-          <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
-            <span className="font-bold text-on-surface">VivaArena</span>
-            <span>•</span>
-            <span>Nền tảng Giả lập Bảo vệ Luận án AI © 2025</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <span className="hover:text-primary transition-colors cursor-pointer">
-              Quy chuẩn Luận án
-            </span>
-            <span className="hover:text-primary transition-colors cursor-pointer">
-              Ma trận Đánh giá
-            </span>
-            <span className="hover:text-primary transition-colors cursor-pointer">
-              Hướng dẫn Tranh biện
-            </span>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </main>
   );
 };

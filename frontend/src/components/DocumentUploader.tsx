@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, CheckCircle, ArrowRight, Loader2, BookOpen } from 'lucide-react';
+import { Upload, CheckCircle, ArrowRight, Loader2, BookOpen, Sparkles } from 'lucide-react';
 
 interface DocumentUploaderProps {
   onStartDebate: (params: {
@@ -16,15 +16,18 @@ interface DocumentUploaderProps {
 const SAMPLE_TOPICS = [
   {
     title: 'Phát hiện Tin giả Đa phương thức bằng Deep Learning & Graph Neural Networks',
-    summary: 'Nghiên cứu kết hợp đặc trưng văn bản bằng Transformer và biểu đồ lan truyền mạng xã hội bằng GNN để tăng độ chính xác phát hiện tin giả lên 94.2%.',
+    summary:
+      'Nghiên cứu kết hợp đặc trưng văn bản bằng Transformer và biểu đồ lan truyền mạng xã hội bằng GNN để tăng độ chính xác phát hiện tin giả lên 94.2%.',
   },
   {
     title: 'Nền tảng EdTech Cá nhân hóa Lộ trình Học tập Dựa trên Generative AI & RAG',
-    summary: 'Hệ thống tự động phân tích lỗ hổng kiến thức sinh viên qua các bài kiểm tra thích ứng, từ đó sinh lộ trình học vi mô và câu hỏi gợi mở.',
+    summary:
+      'Hệ thống tự động phân tích lỗ hổng kiến thức sinh viên qua các bài kiểm tra thích ứng, từ đó sinh lộ trình học vi mô và câu hỏi gợi mở.',
   },
   {
     title: 'Kiến trúc Microservices Chịu lỗi Cao cho Hệ thống Giao dịch Tài chính Fintech',
-    summary: 'Áp dụng mẫu Saga Pattern kết hợp Kafka để đảm bảo tính nhất quán dữ liệu cuối cùng và khả năng tự phục hồi khi 30% node gặp sự cố.',
+    summary:
+      'Áp dụng mẫu Saga Pattern kết hợp Kafka để đảm bảo tính nhất quán dữ liệu cuối cùng và khả năng tự phục hồi khi 30% node gặp sự cố.',
   },
 ];
 
@@ -35,7 +38,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [topicSummary, setTopicSummary] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<{ id: string; name: string; summary: string } | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{
+    id: string;
+    name: string;
+    summary: string;
+  } | null>(null);
   const [maxTurns, setMaxTurns] = useState<number>(5);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +68,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }
   };
 
-  const handleSelectSample = (sample: typeof SAMPLE_TOPICS[0]) => {
+  const handleSelectSample = (sample: (typeof SAMPLE_TOPICS)[0]) => {
     setTitle(sample.title);
     setTopicSummary(sample.summary);
   };
@@ -78,64 +85,74 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '28px', marginTop: '20px' }}>
+    <div className="mint-card" style={{ padding: '28px', marginTop: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-        <BookOpen size={22} color="#6366f1" />
-        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>
+        <BookOpen size={20} color="#0b6e5e" aria-hidden="true" />
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#0a1413' }}>
           Bước 1: Nạp Đề tài hoặc Tài liệu Đồ án
         </h3>
       </div>
 
       {/* Upload Zone */}
-      <div
+      <button
+        type="button"
         onClick={() => fileInputRef.current?.click()}
+        className="dropzone-glow"
         style={{
-          border: '2px dashed rgba(99, 102, 241, 0.4)',
+          width: '100%',
+          border: '2px dashed rgba(11, 110, 94, 0.35)',
           borderRadius: '16px',
           padding: '24px',
           textAlign: 'center',
           cursor: 'pointer',
-          background: 'rgba(99, 102, 241, 0.04)',
           transition: 'all 0.2s ease',
           marginBottom: '20px',
         }}
       >
         <input
+          id="legacy-uploader-input"
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
           accept=".pdf,.docx,.txt"
-          style={{ display: 'none' }}
+          className="visually-hidden"
+          aria-label="Chọn tệp báo cáo hoặc slide đồ án"
         />
         {isUploading ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            <Loader2 className="animate-spin" size={32} color="#6366f1" />
-            <p style={{ fontSize: '14px', color: '#818cf8' }}>Đang trích xuất văn bản & lập chỉ mục Vector DB...</p>
+            <Loader2 className="animate-spin" size={28} color="#0b6e5e" aria-hidden="true" />
+            <p style={{ fontSize: '14px', color: '#085448', fontWeight: 500 }}>
+              Đang trích xuất văn bản &amp; lập chỉ mục Vector DB...
+            </p>
           </div>
         ) : uploadedFile ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-            <CheckCircle size={24} color="#10b981" />
+            <CheckCircle size={22} color="#0b6e5e" aria-hidden="true" />
             <div style={{ textAlign: 'left' }}>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>{uploadedFile.name}</p>
-              <p style={{ fontSize: '12px', color: '#10b981' }}>Đã tải lên và tạo Ground Truth thành công</p>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a1413' }}>
+                {uploadedFile.name}
+              </p>
+              <p style={{ fontSize: '12px', color: '#0b6e5e' }}>
+                Đã tải lên và tạo Ground Truth thành công
+              </p>
             </div>
           </div>
         ) : (
           <div>
-            <Upload size={32} color="#818cf8" style={{ margin: '0 auto 8px' }} />
-            <p style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>
+            <Upload size={28} color="#0b6e5e" style={{ margin: '0 auto 8px' }} aria-hidden="true" />
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a1413' }}>
               Tải lên file báo cáo / slide đồ án (PDF, DOCX, TXT)
             </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', color: '#465754', marginTop: '4px' }}>
               Hệ thống sẽ nạp tài liệu làm kiến thức chuẩn (Ground Truth) để AI đối chiếu khi tranh biện
             </p>
           </div>
         )}
-      </div>
+      </button>
 
       {/* Sample Topics Quick Buttons */}
       <div style={{ marginBottom: '20px' }}>
-        <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: '#556361', marginBottom: '8px' }}>
           HOẶC CHỌN NHANH ĐỀ TÀI MẪU:
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -144,18 +161,16 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               key={idx}
               type="button"
               onClick={() => handleSelectSample(s)}
+              className="btn-mint-ghost"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '20px',
-                padding: '6px 14px',
+                padding: '6px 12px',
                 fontSize: '12px',
-                color: '#cbd5e1',
                 cursor: 'pointer',
                 textAlign: 'left',
               }}
             >
-              ⚡ {s.title.slice(0, 35)}...
+              <Sparkles size={13} color="#0b6e5e" aria-hidden="true" />
+              <span>{s.title.slice(0, 35)}...</span>
             </button>
           ))}
         </div>
@@ -164,67 +179,77 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       {/* Manual Input Fields */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
         <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-            Tên đề tài / Đồ án <span style={{ color: '#f43f5e' }}>*</span>
+          <label
+            htmlFor="legacy-topic-title"
+            style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0a1413', marginBottom: '6px' }}
+          >
+            Tên đề tài / Đồ án <span style={{ color: '#be123c' }}>*</span>
           </label>
           <input
+            id="legacy-topic-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Ví dụ: Tối ưu hóa kiến trúc RAG cho hệ thống hỏi đáp y tế..."
             style={{
               width: '100%',
-              padding: '12px 16px',
-              borderRadius: '10px',
-              background: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid var(--border-subtle)',
-              color: '#ffffff',
+              padding: '11px 14px',
+              borderRadius: '12px',
+              background: '#f7faf9',
+              border: '1px solid rgba(10, 20, 19, 0.14)',
+              color: '#0a1413',
               fontSize: '14px',
-              outline: 'none',
             }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+          <label
+            htmlFor="legacy-topic-summary"
+            style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0a1413', marginBottom: '6px' }}
+          >
             Tóm tắt luận điểm chính / Đề cương tóm tắt
           </label>
           <textarea
+            id="legacy-topic-summary"
             rows={3}
             value={topicSummary}
             onChange={(e) => setTopicSummary(e.target.value)}
             placeholder="Mô tả ngắn gọn về giải pháp, công nghệ sử dụng, và kết quả đạt được..."
             style={{
               width: '100%',
-              padding: '12px 16px',
-              borderRadius: '10px',
-              background: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid var(--border-subtle)',
-              color: '#ffffff',
+              padding: '11px 14px',
+              borderRadius: '12px',
+              background: '#f7faf9',
+              border: '1px solid rgba(10, 20, 19, 0.14)',
+              color: '#0a1413',
               fontSize: '13px',
-              outline: 'none',
               resize: 'vertical',
             }}
           />
         </div>
 
         {/* Turn settings */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 600 }}>Số lượt phản biện:</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#0a1413' }}>Số lượt phản biện:</span>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[3, 5, 7].map((num) => (
               <button
                 key={num}
                 type="button"
+                aria-pressed={maxTurns === num}
                 onClick={() => setMaxTurns(num)}
                 style={{
-                  padding: '6px 16px',
-                  borderRadius: '8px',
-                  border: maxTurns === num ? '1px solid #6366f1' : '1px solid var(--border-subtle)',
-                  background: maxTurns === num ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)',
-                  color: maxTurns === num ? '#ffffff' : 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '9999px',
+                  border:
+                    maxTurns === num
+                      ? '1px solid #0a1413'
+                      : '1px solid rgba(10, 20, 19, 0.14)',
+                  background: maxTurns === num ? '#0a1413' : '#eff5f3',
+                  color: maxTurns === num ? '#ffffff' : '#465754',
                   fontWeight: 600,
-                  fontSize: '13px',
+                  fontSize: '12px',
                   cursor: 'pointer',
                 }}
               >
@@ -237,20 +262,21 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
       {/* Submit Button */}
       <button
+        type="button"
         onClick={handleStart}
         disabled={isLoading || !title.trim() || isUploading}
-        className="btn-primary"
-        style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+        className="btn-mint-primary"
+        style={{ width: '100%', padding: '13px 20px', fontSize: '14px', cursor: 'pointer' }}
       >
         {isLoading ? (
           <>
-            <Loader2 className="animate-spin" size={18} />
-            Đang triệu tập Hội đồng Phản biện AI...
+            <Loader2 className="animate-spin" size={18} aria-hidden="true" />
+            <span>Đang triệu tập Hội đồng Phản biện AI...</span>
           </>
         ) : (
           <>
-            Bước vào Phòng Bảo vệ & Tranh biện
-            <ArrowRight size={18} />
+            <span>Bước vào Phòng Bảo vệ &amp; Tranh biện</span>
+            <ArrowRight size={18} aria-hidden="true" />
           </>
         )}
       </button>

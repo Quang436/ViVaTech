@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Navbar, type ActiveTab, type UserProfile } from './components/Navbar';
+import { AlertCircle, ArrowRight, BrainCircuit, FolderOpen, ShieldCheck, Sparkles, Mic } from 'lucide-react';
+import { Navbar, BrandMark, type ActiveTab, type UserProfile } from './components/Navbar';
 import { SetupView } from './components/SetupView';
 import { ArenaChamber } from './components/ArenaChamber';
 import { ScorecardView } from './components/ScorecardView';
@@ -11,11 +12,19 @@ import { HomeView } from './components/HomeView';
 import { api } from './services/api';
 import type { CouncilPersona, DebateSession, Scorecard, UploadedDocument } from './types';
 
-const DEFAULT_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms';
+const DEFAULT_AVATAR = '/avatars/user-default.jpg';
+
+const TAB_TITLES: Record<ActiveTab, string> = {
+  home: 'VivaArena — Nền Tảng Giả Lập Phản Biện Luận Án AI',
+  documents: 'VivaArena — Quản Lý & Tải Tài Liệu Đề Án',
+  setup: 'VivaArena — Khởi Tạo & Thiết Lập Hội Đồng Phản Biện AI',
+  arena: 'VivaArena — Phòng Tranh Biện AI CoT Thời Gian Thực',
+  scorecard: 'VivaArena — Bảng Điểm & Báo Cáo Hậu Bảo Vệ Luận Án',
+  archive: 'VivaArena — Kho Đề Án & Tiến Độ Luyện Tập',
+};
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('setup');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [selectedPersona, setSelectedPersona] = useState<CouncilPersona>('academic_reviewer');
   const [activeSession, setActiveSession] = useState<DebateSession | null>(null);
   const [scorecardData, setScorecardData] = useState<Scorecard | null>(null);
@@ -25,12 +34,19 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCouncilThinking, setIsCouncilThinking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Auth & User Profile State (Lưu thực tế vào localStorage)
+  // Auth & User Profile State
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('viva_arena_user');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as UserProfile;
+        if (parsed.avatar && parsed.avatar.includes('googleusercontent.com')) {
+          parsed.avatar = DEFAULT_AVATAR;
+        }
+        return parsed;
+      }
     } catch {
       // ignore
     }
@@ -43,9 +59,15 @@ export function App() {
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Notifications State (Sinh động từ sự kiện thực tế của hệ thống)
+  // Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  // Dynamic page <title> per active view & scroll top on route change
+  useEffect(() => {
+    document.title = TAB_TITLES[activeTab] || TAB_TITLES.home;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeTab]);
 
   // Tải toàn bộ dữ liệu thật từ Backend (Documents, Sessions, Scorecards)
   const refreshRealData = useCallback(async () => {
@@ -59,7 +81,6 @@ export function App() {
       setSessions(sessList);
       setScorecards(cardsList);
 
-      // Tạo thông báo thực tế từ dữ liệu hệ thống
       const realNotifs: NotificationItem[] = [];
       if (docsList.length > 0) {
         realNotifs.push({
@@ -89,7 +110,11 @@ export function App() {
         realNotifs.push({
           id: `sess-${sessList[0].id}`,
           title: `Phiên gần nhất: ${sessList[0].title.slice(0, 45)}`,
-          description: `Trạng thái: ${sessList[0].status === 'completed' ? 'Đã hoàn thành' : `Đang ở lượt ${sessList[0].current_turn}/${sessList[0].max_turns}`}.`,
+          description: `Trạng thái: ${
+            sessList[0].status === 'completed'
+              ? 'Đã hoàn thành'
+              : `Đang ở lượt ${sessList[0].current_turn}/${sessList[0].max_turns}`
+          }.`,
           time: 'Lịch sử hệ thống',
           unread: false,
           type: 'info',
@@ -99,22 +124,25 @@ export function App() {
       }
       setNotifications(realNotifs);
 
-      if (!scorecardData && cardsList.length > 0) {
-        setScorecardData(cardsList[0]);
+      if (cardsList.length > 0) {
+        setScorecardData((prev) => prev ?? cardsList[0]);
       }
     } catch (err) {
       console.error('Lỗi đồng bộ dữ liệu thật từ Backend:', err);
     }
-  }, [scorecardData]);
+  }, []);
 
   useEffect(() => {
-    refreshRealData();
-  }, []);
+    void refreshRealData();
+  }, [refreshRealData]);
 
   // Upload Document thật & cập nhật danh sách
   const handleUploadDocument = async (file: File): Promise<UploadedDocument> => {
     const uploaded = await api.uploadDocument(file);
-    setDocuments((prev) => [uploaded, ...prev.filter((d) => d.document_id !== uploaded.document_id)]);
+    setDocuments((prev) => [
+      uploaded,
+      ...prev.filter((d) => d.document_id !== uploaded.document_id),
+    ]);
     setNotifications((prev) => [
       {
         id: `upload-${uploaded.document_id}`,
@@ -136,7 +164,7 @@ export function App() {
     setDocuments((prev) => prev.filter((d) => d.document_id !== docId));
   };
 
-  // Step 1: Start Debate Session (Dữ liệu thật từ Gemini AI & SQLite)
+  // Step 1: Start Debate Session
   const handleStartDebate = async (params: {
     title: string;
     topic_summary?: string;
@@ -150,6 +178,7 @@ export function App() {
       return;
     }
     setIsLoading(true);
+    setActionError(null);
     try {
       const session = await api.createSession({
         title: params.title,
@@ -164,16 +193,17 @@ export function App() {
       setActiveTab('arena');
     } catch (err) {
       console.error('Lỗi khởi tạo phiên:', err);
-      alert(err instanceof Error ? err.message : 'Không thể khởi tạo phiên tranh biện.');
+      setActionError(err instanceof Error ? err.message : 'Không thể khởi tạo phiên tranh biện.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Step 2: Submit Turn Response (Gửi câu trả lời thật -> Gemini CoT chấm & hỏi tiếp)
+  // Step 2: Submit Turn Response
   const handleSubmitTurn = async (response: string, mode: 'voice' | 'text', duration: number) => {
     if (!activeSession) return;
     setIsCouncilThinking(true);
+    setActionError(null);
 
     try {
       const rebuttal = await api.submitTurn(activeSession.id, response, mode, duration);
@@ -225,7 +255,7 @@ export function App() {
       }
     } catch (err) {
       console.error('Lỗi gửi phản hồi:', err);
-      alert(err instanceof Error ? err.message : 'Lỗi khi xử lý câu trả lời.');
+      setActionError(err instanceof Error ? err.message : 'Lỗi khi xử lý câu trả lời.');
     } finally {
       setIsCouncilThinking(false);
     }
@@ -233,6 +263,7 @@ export function App() {
 
   const handleViewSessionScorecard = async (sess: DebateSession) => {
     setIsLoading(true);
+    setActionError(null);
     try {
       const card = await api.getScorecard(sess.id);
       setActiveSession(sess);
@@ -241,7 +272,9 @@ export function App() {
       setActiveTab('scorecard');
     } catch (err) {
       console.error('Lỗi lấy bảng điểm:', err);
-      alert(err instanceof Error ? err.message : 'Không thể tạo bảng điểm cho phiên này.');
+      setActionError(
+        err instanceof Error ? err.message : 'Không thể tạo bảng điểm cho phiên này.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -257,6 +290,7 @@ export function App() {
       }
     } catch (err) {
       console.error('Lỗi xóa phiên:', err);
+      setActionError(err instanceof Error ? err.message : 'Không thể xóa phiên này.');
     }
   };
 
@@ -299,27 +333,33 @@ export function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
+  const navigateToTab = (tab: ActiveTab) => {
+    setActionError(null);
+    if (tab === 'archive' || tab === 'documents') {
+      void refreshRealData();
+    }
+    setActiveTab(tab);
+  };
+
   const unreadCount = currentUser ? notifications.filter((n) => n.unread).length : 0;
 
   return (
-    <div className="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary flex flex-col justify-between">
-      {/* ==================== AMBIENT LIGHTING BACKGROUND ==================== */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/90 to-background"></div>
-        <div className="absolute top-16 left-1/4 w-[540px] h-[540px] rounded-full bg-primary-fixed/30 blur-3xl anim-float-1"></div>
-        <div className="absolute top-1/3 -right-20 w-[500px] h-[500px] rounded-full bg-secondary-fixed/25 blur-3xl anim-float-2"></div>
-        <div className="absolute bottom-16 left-8 w-[440px] h-[440px] rounded-full bg-tertiary-fixed/20 blur-3xl anim-pulse-glow"></div>
+    <div className="bg-[#f7faf9] text-[#0a1413] min-h-screen relative overflow-x-hidden selection:bg-[rgba(110,231,200,0.35)] selection:text-[#062822] flex flex-col justify-between">
+      {/* Subtle Light Mode Mint Paper Ambient Halo (single accent, never purple) */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div
+          className="absolute -top-48 left-1/2 -translate-x-1/2 w-[1080px] h-[520px] rounded-full blur-3xl opacity-75"
+          style={{
+            background:
+              'radial-gradient(closest-side, rgba(110, 231, 200, 0.24), rgba(110, 231, 200, 0))',
+          }}
+        />
       </div>
 
-      {/* Top Navbar */}
+      {/* Top Sticky Mint Paper Navbar */}
       <Navbar
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          if (tab === 'archive' || tab === 'documents') {
-            refreshRealData();
-          }
-          setActiveTab(tab);
-        }}
+        onSelectTab={navigateToTab}
         sessionCode={
           activeSession ? `#VV-${activeSession.id.slice(0, 4).toUpperCase()}` : '#CHƯA-MỞ'
         }
@@ -328,8 +368,30 @@ export function App() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
         onOpenNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)}
+        isNotificationsOpen={isNotificationsOpen}
         unreadNotificationCount={unreadCount}
       />
+
+      {/* Non-blocking System Error Banner */}
+      {actionError && (
+        <div
+          role="alert"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,40rem)] p-4 rounded-2xl bg-[#ffe4e6] border border-[#be123c]/25 text-[#881337] shadow-[0_18px_40px_-14px_rgba(190,18,60,0.2)] flex items-center justify-between gap-3 text-xs font-sans"
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-[#be123c] shrink-0" strokeWidth={2} aria-hidden="true" />
+            <span className="font-medium">{actionError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            aria-label="Đóng thông báo lỗi"
+            className="text-[#881337] hover:underline font-semibold bg-transparent border-none cursor-pointer shrink-0"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
 
       {/* Notifications Popover */}
       {currentUser && (
@@ -338,14 +400,11 @@ export function App() {
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
           onMarkAllAsRead={handleMarkAllAsRead}
-          onSelectAction={(tab) => {
-            setActiveTab(tab);
-            setIsNotificationsOpen(false);
-          }}
+          onSelectAction={navigateToTab}
         />
       )}
 
-      {/* Auth Modal (Login / Register) */}
+      {/* Native <dialog> Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
@@ -353,20 +412,25 @@ export function App() {
       />
 
       {/* Main View Router */}
-      <div className="relative z-10 flex-1 flex flex-col">
+      <div key={activeTab} className="relative z-10 flex-1 flex flex-col mint-page-in">
         {activeTab === 'home' && (
           <HomeView
             onStartSetup={() => {
               if (!currentUser) {
                 setIsAuthModalOpen(true);
               } else {
-                setActiveTab('setup');
+                navigateToTab('setup');
               }
             }}
-            onExploreArchive={() => {
-              refreshRealData();
-              setActiveTab('archive');
+            onSelectPersona={(p) => {
+              setSelectedPersona(p);
+              if (!currentUser) {
+                setIsAuthModalOpen(true);
+              } else {
+                navigateToTab('setup');
+              }
             }}
+            onExploreArchive={() => navigateToTab('archive')}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             user={currentUser}
           />
@@ -384,34 +448,39 @@ export function App() {
         )}
 
         {activeTab === 'arena' && !activeSession && (
-          <div className="pt-28 pb-16 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary-fixed/40 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl">psychology</span>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="pt-20 pb-20 flex-1 max-w-xl w-full mx-auto px-4 text-center flex flex-col items-center justify-center gap-4 outline-none"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-[rgba(110,231,200,0.2)] border border-[rgba(11,110,94,0.22)] text-[#085448] flex items-center justify-center">
+              <BrainCircuit className="w-8 h-8" strokeWidth={1.8} aria-hidden="true" />
             </div>
-            <h2 className="font-headline text-2xl font-bold text-on-surface">
+            <h1 className="font-sans text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-[#0a1413]">
               Chưa có phiên tranh biện đang mở
-            </h2>
-            <p className="font-body text-xs sm:text-sm text-on-surface-variant max-w-md">
-              Vui lòng chọn tài liệu / nhập đề tài thực tế tại mục Thiết lập để khởi tạo phiên chất vấn với Hội đồng AI, hoặc tiếp tục một phiên từ Lịch sử.
+            </h1>
+            <p className="font-sans text-xs sm:text-sm text-[#465754] max-w-md leading-relaxed">
+              Vui lòng chọn tài liệu hoặc nhập đề tài thực tế tại mục Thiết lập để khởi tạo phiên chất vấn với Hội đồng AI, hoặc tiếp tục một phiên từ Kho đề án.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button
-                onClick={() => setActiveTab('setup')}
-                className="px-5 py-2.5 rounded-xl bg-primary text-white font-label text-xs sm:text-sm font-bold hover:bg-primary-container transition-all cursor-pointer border-none"
+                type="button"
+                onClick={() => navigateToTab('setup')}
+                className="btn-mint-primary h-10 px-5 text-xs sm:text-sm cursor-pointer"
               >
-                Đến Thiết lập đề tài
+                <span>Đến Thiết lập đề tài</span>
+                <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
               </button>
               <button
-                onClick={() => {
-                  refreshRealData();
-                  setActiveTab('archive');
-                }}
-                className="px-5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-label text-xs sm:text-sm font-bold hover:bg-surface-container-low transition-all cursor-pointer"
+                type="button"
+                onClick={() => navigateToTab('archive')}
+                className="btn-mint-ghost h-10 px-5 text-xs sm:text-sm cursor-pointer"
               >
-                Mở phiên từ Lịch sử ({sessions.length})
+                <FolderOpen className="w-4 h-4 text-[#0b6e5e]" strokeWidth={1.9} aria-hidden="true" />
+                <span>Mở phiên từ Lịch sử ({sessions.length})</span>
               </button>
             </div>
-          </div>
+          </main>
         )}
 
         {activeTab === 'arena' && activeSession && (
@@ -431,10 +500,7 @@ export function App() {
             persona={selectedPersona}
             topicTitle={activeSession?.title || 'Phiên bảo vệ học thuật'}
             onRestart={handleRestart}
-            onGoToArchive={() => {
-              refreshRealData();
-              setActiveTab('archive');
-            }}
+            onGoToArchive={() => navigateToTab('archive')}
           />
         )}
 
@@ -442,7 +508,7 @@ export function App() {
           <DocumentsView
             documents={documents}
             onStartSessionWithDoc={(doc) => {
-              handleStartDebate({
+              void handleStartDebate({
                 title: doc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
                 topic_summary: doc.summary,
                 document_id: doc.document_id,
@@ -460,30 +526,194 @@ export function App() {
           <ArchiveView
             sessions={sessions}
             scorecards={scorecards}
-            onNewSession={() => setActiveTab('setup')}
+            onNewSession={() => navigateToTab('setup')}
             onViewScorecard={handleViewSessionScorecard}
             onResumeSession={(sess) => {
               setActiveSession(sess);
               setSelectedPersona(sess.persona);
-              setActiveTab('arena');
+              navigateToTab('arena');
             }}
             onDeleteSession={handleDeleteSession}
+            onOpenDocuments={() => navigateToTab('documents')}
           />
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-surface-container-high/60 py-4 px-4 sm:px-6 lg:px-8 text-center text-xs font-label text-on-surface-variant bg-surface-container-lowest/60 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            VivaArena © 2025 • Phòng Phản Biện & Tranh Biện Học Thuật AI Chuẩn Hội Đồng Quốc Gia
-          </span>
-          <span className="font-mono text-[11px] text-primary">
-            Powered by Google Gemini AI, ChromaDB RAG & D-ID WebRTC Agent
-          </span>
+      {/* Editorial Light Mint Paper Footer */}
+      <footer className="relative z-10 border-t border-[rgba(10,20,19,0.08)] bg-[#f7faf9] pt-14 pb-8 overflow-hidden no-print">
+        <div className="mint-wrap">
+          <div className="flex flex-col lg:flex-row justify-between gap-12">
+            {/* Brand Column */}
+            <div className="flex flex-col gap-4 max-w-xs">
+              <button
+                type="button"
+                onClick={() => navigateToTab('home')}
+                className="flex items-center gap-2.5 text-left bg-transparent border-none p-0 cursor-pointer w-fit"
+              >
+                <span className="w-7 h-7 rounded-lg bg-[#eff5f3] border border-[rgba(10,20,19,0.1)] flex items-center justify-center">
+                  <BrandMark className="w-4 h-4" />
+                </span>
+                <span className="font-sans font-semibold text-base tracking-[-0.02em] text-[#0a1413]">
+                  VivaArena
+                </span>
+              </button>
+              <p className="font-sans text-xs sm:text-sm text-[#465754] leading-relaxed">
+                Hệ thống giả lập phản biện luận án AI ứng dụng suy luận chuỗi CoT 3 bước và đối soát tài liệu RAG.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('setup')}
+                  aria-label="Phòng thiết lập phản biện"
+                  className="w-8 h-8 rounded-lg bg-[#eff5f3] border border-[rgba(10,20,19,0.1)] flex items-center justify-center text-[#465754] hover:text-[#0b6e5e] hover:border-[rgba(11,110,94,0.3)] transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('documents')}
+                  aria-label="Kho tài liệu RAG"
+                  className="w-8 h-8 rounded-lg bg-[#eff5f3] border border-[rgba(10,20,19,0.1)] flex items-center justify-center text-[#465754] hover:text-[#0b6e5e] hover:border-[rgba(11,110,94,0.3)] transition-colors cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('arena')}
+                  aria-label="Phòng tranh biện giọng nói"
+                  className="w-8 h-8 rounded-lg bg-[#eff5f3] border border-[rgba(10,20,19,0.1)] flex items-center justify-center text-[#465754] hover:text-[#0b6e5e] hover:border-[rgba(11,110,94,0.3)] transition-colors cursor-pointer"
+                >
+                  <Mic className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Navigation Columns */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 lg:gap-14">
+              <div className="flex flex-col gap-2.5">
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361] mb-1">
+                  NỀN TẢNG
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('home')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Tổng quan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('documents')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Kho tài liệu RAG
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('setup')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Thiết lập đề tài
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361] mb-1">
+                  QUY TRÌNH
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('arena')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Phòng tranh biện AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('scorecard')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Bảng điểm 4 trục
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToTab('archive')}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Hồ sơ E-Portfolio
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361] mb-1">
+                  HỘI ĐỒNG AI
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPersona('feynman');
+                    navigateToTab('setup');
+                  }}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Cấp 1 · Feynman
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPersona('academic_reviewer');
+                    navigateToTab('setup');
+                  }}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Cấp 2 · Học thuật
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPersona('strict_council');
+                    navigateToTab('setup');
+                  }}
+                  className="text-left text-xs sm:text-sm text-[#465754] hover:text-[#0a1413] bg-transparent border-none p-0 cursor-pointer transition-colors"
+                >
+                  Cấp 3 · Stress-Test
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#556361] mb-1">
+                  CÔNG NGHỆ
+                </h2>
+                <span className="text-xs sm:text-sm text-[#465754]">Gemini CoT Engine</span>
+                <span className="text-xs sm:text-sm text-[#465754]">Vector RAG Ground Truth</span>
+                <span className="text-xs sm:text-sm text-[#465754]">D-ID WebRTC Stream</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-5 border-t border-[rgba(10,20,19,0.08)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-[#556361]">
+            <span>© 2026 VivaArena. Bảo lưu toàn bộ quyền sở hữu học thuật.</span>
+            <span className="inline-flex items-center gap-2 font-mono text-[11px] text-[#0b6e5e]">
+              <span
+                className="w-2 h-2 rounded-full bg-[#6ee7c8] border border-[#0b6e5e]"
+                style={{ boxShadow: '0 0 8px rgba(110, 231, 200, 0.9)' }}
+                aria-hidden="true"
+              />
+              <span>Gemini AI, Vector RAG &amp; WebRTC đang hoạt động</span>
+            </span>
+          </div>
+
+          {/* Subtle Giant Mint Paper Editorial Wordmark */}
+          <div
+            aria-hidden="true"
+            className="mt-8 text-center font-sans font-semibold select-none whitespace-nowrap overflow-hidden leading-[0.82] tracking-[-0.045em] text-[rgba(10,20,19,0.045)] text-[76px] sm:text-[132px] lg:text-[210px]"
+          >
+            VivaArena
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+
 export default App;
