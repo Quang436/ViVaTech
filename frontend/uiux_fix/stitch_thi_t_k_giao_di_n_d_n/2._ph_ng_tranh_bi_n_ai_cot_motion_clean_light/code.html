@@ -1,0 +1,527 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="web_standard" name="shell-type">
+<title>VivaArena - Phòng Tranh Biện AI CoT Thời Gian Thực</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500;1,6..72,600&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #faf8ff;
+        color: #131b2e;
+        font-family: 'Manrope', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, .font-editorial {
+        font-family: 'Newsreader', serif;
+      }
+      .font-label {
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+      .font-sans-accent {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+    }
+    ::-webkit-scrollbar { display: none; }
+
+    /* Motion Keyframes */
+    @keyframes float-ambient {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-16px) rotate(2deg); }
+    }
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(18px) scale(1.05); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.08); }
+    }
+    @keyframes wave-bounce {
+      0%, 100% { height: 6px; }
+      50% { height: 28px; }
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    @keyframes timer-tick {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.25); }
+    }
+    @keyframes avatar-scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(1000%); }
+    }
+    @keyframes subtle-breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+
+    .anim-float-1 { animation: float-ambient 9s ease-in-out infinite; }
+    .anim-float-2 { animation: float-slow 12s ease-in-out infinite; }
+    .anim-pulse-glow { animation: pulse-glow 6s ease-in-out infinite; }
+    .anim-pulse-ring { animation: pulse-ring 2.5s ease-in-out infinite; }
+    .anim-timer-tick { animation: timer-tick 1s ease-in-out infinite; }
+    .anim-live-pulse { animation: live-pulse 1.8s ease-in-out infinite; }
+    .anim-avatar-breathe { animation: subtle-breathe 8s ease-in-out infinite; }
+
+    .wave-bar:nth-child(1) { animation: wave-bounce 0.9s ease-in-out infinite 0.1s; }
+    .wave-bar:nth-child(2) { animation: wave-bounce 1.1s ease-in-out infinite 0.35s; }
+    .wave-bar:nth-child(3) { animation: wave-bounce 0.85s ease-in-out infinite 0.2s; }
+    .wave-bar:nth-child(4) { animation: wave-bounce 1.25s ease-in-out infinite 0.5s; }
+    .wave-bar:nth-child(5) { animation: wave-bounce 1.05s ease-in-out infinite 0.15s; }
+    .wave-bar:nth-child(6) { animation: wave-bounce 0.95s ease-in-out infinite 0.4s; }
+    .wave-bar:nth-child(7) { animation: wave-bounce 1.2s ease-in-out infinite 0.25s; }
+    .wave-bar:nth-child(8) { animation: wave-bounce 0.8s ease-in-out infinite 0.05s; }
+
+    .hover-lift {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 28px -8px rgba(0, 92, 85, 0.12), 0 6px 12px -4px rgba(19, 27, 46, 0.04);
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary-fixed": "#9cf2e8",
+          "primary-container": "#0f766e",
+          "error": "#ba1a1a",
+          "surface-dim": "#d2d9f4",
+          "on-primary-fixed-variant": "#00504a",
+          "surface-container": "#eaedff",
+          "on-error": "#ffffff",
+          "inverse-primary": "#80d5cb",
+          "on-tertiary": "#ffffff",
+          "error-container": "#ffdad6",
+          "secondary-fixed-dim": "#93ccff",
+          "surface-container-lowest": "#ffffff",
+          "on-primary-container": "#a3faef",
+          "on-secondary-fixed-variant": "#004b73",
+          "surface-variant": "#dae2fd",
+          "on-surface-variant": "#3e4947",
+          "on-secondary-fixed": "#001d31",
+          "on-secondary-container": "#00476e",
+          "on-primary-fixed": "#00201d",
+          "inverse-on-surface": "#eef0ff",
+          "on-background": "#131b2e",
+          "on-tertiary-container": "#e6e9ff",
+          "surface-container-high": "#e2e7ff",
+          "surface-tint": "#006a63",
+          "background": "#faf8ff",
+          "on-surface": "#131b2e",
+          "on-primary": "#ffffff",
+          "tertiary": "#0047bf",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "secondary": "#006398",
+          "primary": "#005c55",
+          "outline": "#6e7977",
+          "surface": "#faf8ff",
+          "on-tertiary-fixed": "#00174b",
+          "inverse-surface": "#283044",
+          "secondary-container": "#5bb8fe",
+          "on-error-container": "#93000a",
+          "outline-variant": "#bdc9c6",
+          "secondary-fixed": "#cce5ff",
+          "surface-bright": "#faf8ff",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "surface-container-low": "#f2f3ff",
+          "on-secondary": "#ffffff",
+          "tertiary-fixed": "#dbe1ff",
+          "primary-fixed-dim": "#80d5cb",
+          "tertiary-container": "#1e5fe7",
+          "surface-container-highest": "#dae2fd"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.125rem",
+          "lg": "0.25rem",
+          "xl": "0.5rem",
+          "full": "0.75rem"
+        },
+        "fontFamily": {
+          "headline": ["Newsreader", "serif"],
+          "display": ["Newsreader", "serif"],
+          "body": ["Manrope", "sans-serif"],
+          "label": ["Hanken Grotesk", "sans-serif"],
+          "accent": ["Plus Jakarta Sans", "sans-serif"]
+        }
+      },
+    },
+  }
+</script>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col justify-between relative selection:bg-primary-fixed selection:text-primary">
+<!-- AMBIENT GLOW BACKGROUND (Tương đồng Landing Page Screen 3) -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-b from-background/70 via-background/95 to-background"></div>
+<div class="absolute top-10 left-1/4 w-[500px] h-[500px] rounded-full bg-primary-fixed/25 blur-3xl anim-float-1"></div>
+<div class="absolute top-1/3 -right-20 w-[450px] h-[450px] rounded-full bg-secondary-fixed/25 blur-3xl anim-float-2"></div>
+<div class="absolute bottom-16 left-12 w-[400px] h-[400px] rounded-full bg-tertiary-fixed/20 blur-3xl anim-pulse-glow"></div>
+</div>
+<!-- ================= HEADER NAVIGATION ĐỒNG BỘ ================= -->
+<header class="sticky top-0 z-50 bg-surface-container-lowest/90 backdrop-blur-md border-b border-surface-container-high/70 shadow-xs">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+<!-- Brand Logo -->
+<div class="flex items-center gap-6 flex-shrink-0">
+<a class="flex items-center gap-2.5 group" href="#">
+<div class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">balance</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label font-bold text-base tracking-tight text-on-surface leading-none">VivaArena</span>
+<span class="font-label text-[10px] text-on-surface-variant font-medium tracking-wider mt-0.5 uppercase">Defense Simulator</span>
+</div>
+</a>
+<div class="h-5 w-px bg-surface-container-high hidden sm:block"></div>
+<div class="hidden sm:flex items-center gap-2 text-xs font-label font-semibold px-3 py-1 rounded-full bg-primary-fixed/30 text-on-primary-fixed-variant border border-primary-fixed-dim/40">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="">PHIÊN BẢO VỆ #VV-9042</span>
+</div>
+</div>
+<!-- Dashboard Navigation Links (Active: Tranh biện AI) -->
+<nav class="hidden md:flex items-center gap-1 bg-surface-container-low/80 p-1 rounded-xl border border-surface-container-high/60 text-xs lg:text-sm font-label">
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface transition-all" href="#">Trang chủ</a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface transition-all" href="#">Tài liệu</a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface transition-all" href="#">Thiết lập đề tài</a>
+<a class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-bold shadow-xs border border-surface-container-high transition-all" href="#">Tranh biện AI</a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface transition-all" href="#">Đánh giá</a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface transition-all" href="#">Kho đề án</a>
+</nav>
+<!-- Student Profile & Notification Bell -->
+<div class="flex items-center gap-3 flex-shrink-0">
+<button class="relative p-2 rounded-xl border border-surface-container-high/70 bg-surface-container-lowest/80 text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Thông báo">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+</button>
+<div class="flex items-center gap-2.5 pl-1.5 border-l border-surface-container-high">
+<img alt="Ảnh thí sinh" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary/25 shadow-xs" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms">
+<div class="hidden lg:flex flex-col text-left leading-tight">
+<span class="font-label text-xs font-bold text-on-surface">Nguyễn Văn Khang</span>
+<span class="font-label text-[10px] text-on-surface-variant">Học viên Khóa 2025</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- ================= MAIN CONTENT ================= -->
+<main class="w-full flex-1 relative z-10">
+<!-- SESSION STATUS & TIMER BAR -->
+<div class="bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 py-3.5 px-4 sm:px-6 lg:px-8 shadow-xs">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+<div class="flex items-center gap-3.5">
+<span class="px-3 py-1 rounded-full bg-primary-fixed/40 text-on-primary-fixed-variant font-label text-xs font-bold uppercase tracking-wider border border-primary-fixed-dim/50 shadow-xs">
+          Lượt 2 / 5
+        </span>
+<div>
+<h1 class="font-headline font-semibold text-lg sm:text-xl text-on-surface leading-tight">
+            Chủ đề: Cơ chế Dung hợp Đặc trưng BERT + GNN
+          </h1>
+<p class="text-xs text-on-surface-variant font-body">Hội đồng đang kiểm chứng tính hợp lý của phương pháp luận khoa học</p>
+</div>
+</div>
+<!-- Timer & Session Actions -->
+<div class="flex items-center gap-3 self-end md:self-center">
+<!-- Animated Timer Badge -->
+<div class="flex items-center gap-2 bg-surface-container-low border border-primary/20 px-4 py-1.5 rounded-full text-xs font-label text-on-surface shadow-xs anim-timer-tick">
+<span class="material-symbols-outlined text-[17px] text-primary">timer</span>
+<span class="text-on-surface-variant">Thời gian phản xạ:</span>
+<span class="font-bold text-primary font-mono text-sm tracking-wide" id="countdown">00:00s</span>
+</div>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-container-high bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-label text-xs font-semibold transition-all shadow-xs" id="pauseBtn">
+<span class="material-symbols-outlined text-base text-on-surface-variant">pause</span>
+<span class="">Tạm dừng</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 3-COLUMN LIVE DEBATE ROOM -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+<!-- ================= CỘT 1: HUMANOID AI EXAMINER (DIGITAL HUMAN AVATAR LIVE FEED) ================= -->
+<section class="lg:col-span-4 flex flex-col"><div class="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+<div>
+  <div class="relative w-full rounded-xl overflow-hidden border border-primary/20 bg-slate-900 shadow-sm group">
+    <div class="relative aspect-[16/10] w-full overflow-hidden">
+      <img alt="GS. TS. Vũ Thành Đạt" class="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/AEtjO1WNc-QSq92P90XqXpXf0p-2Qfbozh7HivO8RvhyyXng_l-4j1yV26_Vp_CvKNPpTKWLMs3iKySCjiQuv10M9FNpwAVCHkMt_Jyhmi0wP_-QbHXqCVJh3NYDKkdAcUPgkMsngqbQAAvduhSNF0Jn9V77V-lv1AoEYBOjh0Au7v_dMQ2qN2WzEUKdRjqcdlVy03jP5870fi_wVL6aEjL0tBNxj2zFBTD41jat3hwQgDPX">
+      <div class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between">
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 text-xs font-label">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="font-medium">GS. TS. Vũ Thành Đạt • Trực tiếp</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button class="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/10" title="Âm thanh">
+            <span class="material-symbols-outlined text-base">volume_up</span>
+          </button>
+          <button class="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-colors border border-white/10" title="Camera">
+            <span class="material-symbols-outlined text-base">videocam</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-5">
+    <span class="text-xs font-label uppercase tracking-wider text-on-surface-variant font-bold block mb-2">Câu hỏi chất vấn</span>
+    <div class="bg-surface-container-low/70 border-l-4 border-primary rounded-r-xl rounded-bl-xl p-4 shadow-xs">
+      <blockquote class="font-headline text-on-surface text-base sm:text-lg italic leading-relaxed">
+        “Bạn đã nêu được 2 thành phần mô hình, nhưng chưa giải thích được <strong class="font-bold text-primary not-italic">cơ chế dung hợp đặc trưng (Feature Fusion)</strong>. Cụ thể ma trận kề trong GNN được khởi tạo ra sao khi đồ thị có hàng triệu node? Hãy làm rõ độ phức tạp tính toán!”
+      </blockquote>
+    </div>
+  </div>
+</div>
+
+<div class="mt-5 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
+  <span class="flex items-center gap-1.5">
+    <span class="material-symbols-outlined text-[16px] text-primary">record_voice_over</span>
+    Hội đồng đang chờ phần trả lời
+  </span>
+  <button class="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors" title="Lưu câu hỏi">
+    <span class="material-symbols-outlined text-base">bookmark_border</span>
+  </button>
+</div>
+</div></section>
+<!-- ================= CỘT 2: TIẾN TRÌNH PHÂN TÍCH AI CoT 3 BƯỚC ================= -->
+<section class="lg:col-span-4 flex flex-col"><div class="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+<div>
+  <div class="flex items-center justify-between pb-4 border-b border-surface-container-high/60">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+        <span class="material-symbols-outlined text-lg">psychology</span>
+      </div>
+      <div>
+        <h2 class="font-headline font-semibold text-lg text-on-surface leading-none">Tiến trình Phân tích AI</h2>
+        <span class="font-label text-xs text-on-surface-variant font-medium">Suy luận ngữ cảnh thời gian thực</span>
+      </div>
+    </div>
+    <span class="font-label text-xs font-semibold text-primary bg-primary-fixed/30 px-2.5 py-1 rounded-full border border-primary-fixed-dim/40">
+      CoT Active
+    </span>
+  </div>
+
+  <div class="mt-5 flex flex-col gap-3">
+    <div class="p-3.5 rounded-xl border border-primary/20 bg-primary-fixed/15">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="font-label text-xs font-bold text-primary flex items-center gap-1.5">
+          <span class="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">1</span>
+          Đối chiếu tài liệu
+        </span>
+        <span class="text-[11px] font-label font-bold text-primary bg-surface-container-lowest px-2 py-0.5 rounded-full shadow-2xs border border-primary/15">Khớp 82%</span>
+      </div>
+      <p class="font-body text-xs text-on-surface-variant leading-relaxed">
+        Khái niệm BERT + GNN khớp với đề cương, nhưng chưa trình bày chi tiết Attention-based Fusion.
+      </p>
+    </div>
+
+    <div class="p-3.5 rounded-xl border border-secondary/25 bg-secondary-fixed/20">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="font-label text-xs font-bold text-secondary flex items-center gap-1.5">
+          <span class="w-4 h-4 rounded-full bg-secondary text-white flex items-center justify-center text-[10px]">2</span>
+          Điểm cần làm rõ
+        </span>
+        <span class="text-[11px] font-label font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/80">Lỗ hổng logic</span>
+      </div>
+      <p class="font-body text-xs text-on-surface-variant leading-relaxed">
+        Cần nêu giải pháp cho vấn đề tràn VRAM khi mở rộng kích thước đồ thị (độ phức tạp O(V+E)).
+      </p>
+    </div>
+
+    <div class="p-3.5 rounded-xl border border-tertiary/20 bg-tertiary-fixed/20">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="font-label text-xs font-bold text-tertiary flex items-center gap-1.5">
+          <span class="w-4 h-4 rounded-full bg-tertiary text-white flex items-center justify-center text-[10px]">3</span>
+          Hướng truy vấn tiếp theo
+        </span>
+        <span class="text-[11px] font-label font-medium text-tertiary bg-surface-container-lowest px-2 py-0.5 rounded-full border border-tertiary/15">Socratic</span>
+      </div>
+      <p class="font-body text-xs text-on-surface-variant leading-relaxed">
+        Kiểm tra kỹ thuật lấy mẫu GraphSAGE hoặc Cluster-GCN trong môi trường tính toán phân tán.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="mt-5 pt-3 border-t border-surface-container-high/60 flex items-center justify-between text-xs font-label text-on-surface-variant">
+  <span class="flex items-center gap-1.5">
+    <span class="w-2 h-2 rounded-full bg-primary"></span>
+    Đồng bộ dữ liệu phiên bảo vệ
+  </span>
+  <span class="text-primary font-medium text-[11px]">Tự động cập nhật</span>
+</div>
+</div></section>
+<!-- ================= CỘT 3: PHÁT BIỂU CỦA THÍ SINH ================= -->
+<section class="lg:col-span-4 flex flex-col"><div class="bg-surface-container-lowest/90 backdrop-blur-sm border border-surface-container-high/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full hover-lift">
+<div>
+  <div class="flex items-center justify-between pb-3.5 border-b border-surface-container-high/60">
+    <div class="flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+      <h3 class="font-headline font-semibold text-lg text-on-surface">Phát biểu của bạn</h3>
+    </div>
+    <span class="px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200/80 font-label font-semibold text-xs flex items-center gap-1">
+      <span class="material-symbols-outlined text-xs animate-pulse">mic</span>
+      Đang thu âm
+    </span>
+  </div>
+
+  <div class="my-4 flex items-center justify-between px-3 py-2 rounded-xl bg-surface-container-low/60 border border-surface-container-high/50 text-xs font-label text-on-surface-variant">
+    <div class="flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-[15px] text-secondary">speed</span>
+      <span class="">Tốc độ: <strong class="text-on-surface font-semibold">128 từ/phút</strong></span>
+    </div>
+    <div class="h-3 w-px bg-surface-container-high"></div>
+    <div class="flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-[15px] text-primary">bolt</span>
+      <span class="">Độ trễ: <strong class="text-on-surface font-semibold">0.42s</strong></span>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center justify-between text-xs font-label">
+      <label class="font-semibold text-on-surface" for="responseInput">
+        Nội dung phản biện trực tiếp
+      </label>
+      <span class="text-[11px] text-on-surface-variant">Giọng nói &amp; Gõ phím</span>
+    </div>
+    <div class="relative rounded-xl border border-surface-container-high bg-surface-container-lowest p-3.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary-fixed/50 transition-all shadow-xs">
+      <textarea class="w-full bg-transparent text-on-surface text-sm focus:outline-none resize-none leading-relaxed border-none p-0 font-body placeholder:text-on-surface-variant/60" id="responseInput" placeholder="Nói vào micro hoặc nhập câu trả lời của bạn tại đây..." rows="5">Thưa hội đồng, đối với đồ thị quy mô hàng triệu node, nhóm chúng em áp dụng kỹ thuật Neighbor Sampling của GraphSAGE kết hợp lưu trữ phân tán để giảm kích thước ma trận kề nạp vào VRAM...</textarea>
+    </div>
+  </div>
+
+  <div class="mt-3.5 p-2.5 rounded-xl bg-surface-container-low/50 border border-surface-container-high/40 text-xs font-body text-on-surface-variant flex items-center gap-2">
+    <span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0">tips_and_updates</span>
+    <span class=""><strong>Mẹo PREP:</strong> Luận điểm (Point) → Lý do (Reason) → Dẫn chứng (Example) → Kết luận (Point).</span>
+  </div>
+</div>
+
+<div class="mt-5 pt-3 border-t border-surface-container-high/60">
+  <button class="w-full py-3.5 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md active:scale-[0.99] cursor-pointer" id="submitResponseBtn">
+    <span class="material-symbols-outlined text-lg">send</span>
+    <span class="">Gửi phát biểu cho Hội đồng</span>
+  </button>
+</div>
+</div></section>
+</div>
+</div>
+</main>
+<!-- ================= MINIMAL CLEAN FOOTER ================= -->
+<footer class="bg-surface-container-lowest/90 backdrop-blur-sm border-t border-surface-container-high/60 py-5 px-4 sm:px-6 lg:px-8 relative z-10 mt-8">
+<div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-label text-on-surface-variant">
+<div class="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+<span class="font-bold text-on-surface">VivaArena</span>
+<span class="">•</span>
+<span class="">Nền tảng Giả lập Bảo vệ Luận án AI © 2025</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="hover:text-primary transition-colors" href="#">Quy chuẩn Luận án</a>
+<a class="hover:text-primary transition-colors" href="#">Ma trận Đánh giá</a>
+<a class="hover:text-primary transition-colors" href="#">Hướng dẫn Tranh biện</a>
+</div>
+</div>
+</footer>
+<!-- INTERACTIVE SCRIPTS -->
+<script>
+  (() => {
+    // 1. Countdown Timer (39s countdown loop)
+    let secondsLeft = 39;
+    const countdownElem = document.getElementById('countdown');
+    let timer = setInterval(() => {
+      if (secondsLeft > 0) {
+        secondsLeft--;
+        countdownElem.textContent = `00:${secondsLeft < 10 ? '0' : ''}${secondsLeft}s`;
+      }
+    }, 1000);
+
+    // 2. Pause toggle
+    const pauseBtn = document.getElementById('pauseBtn');
+    let paused = false;
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', () => {
+        paused = !paused;
+        if (paused) {
+          clearInterval(timer);
+          pauseBtn.innerHTML = `<span class="material-symbols-outlined text-base">play_arrow</span><span>Tiếp tục</span>`;
+          pauseBtn.classList.add('bg-primary-fixed/30', 'text-primary');
+        } else {
+          timer = setInterval(() => {
+            if (secondsLeft > 0) {
+              secondsLeft--;
+              countdownElem.textContent = `00:${secondsLeft < 10 ? '0' : ''}${secondsLeft}s`;
+            }
+          }, 1000);
+          pauseBtn.innerHTML = `<span class="material-symbols-outlined text-base text-on-surface-variant">pause</span><span>Tạm dừng</span>`;
+          pauseBtn.classList.remove('bg-primary-fixed/30', 'text-primary');
+        }
+      });
+    }
+
+    // 3. Humanoid AI Examiner Voice TTS & Speaking Toggle
+    const ttsBtn = document.getElementById('ttsButton');
+    const ttsText = document.getElementById('ttsText');
+    const avatarStateLabel = document.getElementById('avatarStateLabel');
+    const muteVoiceBtn = document.getElementById('muteVoiceBtn');
+
+    if (ttsBtn && ttsText) {
+      ttsBtn.addEventListener('click', () => {
+        ttsText.textContent = 'Đang đọc...';
+        ttsBtn.classList.add('bg-primary-fixed/70');
+        if (avatarStateLabel) avatarStateLabel.textContent = 'Đang phát biểu chất vấn';
+        setTimeout(() => {
+          ttsText.textContent = 'Giọng AI (TTS)';
+          ttsBtn.classList.remove('bg-primary-fixed/70');
+        }, 3200);
+      });
+    }
+
+    if (muteVoiceBtn && avatarStateLabel) {
+      let isMuted = false;
+      muteVoiceBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        if (isMuted) {
+          muteVoiceBtn.innerHTML = `<span class="material-symbols-outlined text-[15px] text-rose-600">volume_off</span><span class="text-rose-600">Đã tắt</span>`;
+          avatarStateLabel.textContent = 'Đang quan sát sinh viên (Im lặng)';
+        } else {
+          muteVoiceBtn.innerHTML = `<span class="material-symbols-outlined text-[15px] text-on-surface-variant">pause_circle</span><span>Dừng giọng</span>`;
+          avatarStateLabel.textContent = 'Đang phát biểu chất vấn';
+        }
+      });
+    }
+
+    // 4. Dispatch Student Response
+    const submitBtn = document.getElementById('submitResponseBtn');
+    const responseArea = document.getElementById('responseInput');
+    if (submitBtn && responseArea) {
+      submitBtn.addEventListener('click', () => {
+        if (!responseArea.value.trim()) return;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="material-symbols-outlined text-lg animate-spin">refresh</span><span>Hội đồng đang phân tích...</span>`;
+        if (avatarStateLabel) avatarStateLabel.textContent = 'Đang lắng nghe & đối chiếu CoT...';
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span class="material-symbols-outlined text-lg">check_circle</span><span>Đã gửi thành công</span>`;
+          if (avatarStateLabel) avatarStateLabel.textContent = 'Hội đồng phản hồi chất vấn mới';
+          setTimeout(() => {
+            submitBtn.innerHTML = `<span class="material-symbols-outlined text-lg">send</span><span>Gửi phát biểu cho Hội đồng</span>`;
+          }, 2400);
+        }, 1400);
+      });
+    }
+  })();
+</script>
+
+
+</body></html>

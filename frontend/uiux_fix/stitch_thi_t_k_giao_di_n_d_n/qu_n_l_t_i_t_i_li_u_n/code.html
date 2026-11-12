@@ -1,0 +1,639 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="web_standard" name="shell-type">
+<title>VivaArena - Quản Lý &amp; Tải Tài Liệu Đề Án</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-fixed": "#9cf2e8",
+            "primary-container": "#0f766e",
+            "error": "#ba1a1a",
+            "surface-dim": "#d2d9f4",
+            "on-primary-fixed-variant": "#00504a",
+            "surface-container": "#eaedff",
+            "on-error": "#ffffff",
+            "inverse-primary": "#80d5cb",
+            "on-tertiary": "#ffffff",
+            "error-container": "#ffdad6",
+            "secondary-fixed-dim": "#93ccff",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-container": "#a3faef",
+            "on-secondary-fixed-variant": "#004b73",
+            "surface-variant": "#dae2fd",
+            "on-surface-variant": "#3e4947",
+            "on-secondary-fixed": "#001d31",
+            "on-secondary-container": "#00476e",
+            "on-primary-fixed": "#00201d",
+            "inverse-on-surface": "#eef0ff",
+            "on-background": "#131b2e",
+            "on-tertiary-container": "#e6e9ff",
+            "surface-container-high": "#e2e7ff",
+            "surface-tint": "#006a63",
+            "background": "#faf8ff",
+            "on-surface": "#131b2e",
+            "on-primary": "#ffffff",
+            "tertiary": "#0047bf",
+            "on-tertiary-fixed-variant": "#003ea8",
+            "secondary": "#006398",
+            "primary": "#005c55",
+            "outline": "#6e7977",
+            "surface": "#faf8ff",
+            "on-tertiary-fixed": "#00174b",
+            "inverse-surface": "#283044",
+            "secondary-container": "#5bb8fe",
+            "on-error-container": "#93000a",
+            "outline-variant": "#bdc9c6",
+            "secondary-fixed": "#cce5ff",
+            "surface-bright": "#faf8ff",
+            "tertiary-fixed-dim": "#b4c5ff",
+            "surface-container-low": "#f2f3ff",
+            "on-secondary": "#ffffff",
+            "tertiary-fixed": "#dbe1ff",
+            "primary-fixed-dim": "#80d5cb",
+            "tertiary-container": "#1e5fe7",
+            "surface-container-highest": "#dae2fd"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          fontFamily: {
+            "headline": ["Newsreader", "serif"],
+            "display": ["Newsreader", "serif"],
+            "body": ["Manrope", "sans-serif"],
+            "label": ["Hanken Grotesk", "sans-serif"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #faf8ff;
+        color: #131b2e;
+        font-family: 'Manrope', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, .font-editorial {
+        font-family: 'Newsreader', serif;
+      }
+      .font-label {
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+    }
+
+    @keyframes float-ambient {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-14px) rotate(1.5deg); }
+    }
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(16px) scale(1.04); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.06); }
+    }
+    @keyframes pulse-node {
+      0%, 100% { r: 12px; opacity: 0.8; }
+      50% { r: 15px; opacity: 1; }
+    }
+
+    .anim-float-1 { animation: float-ambient 10s ease-in-out infinite; }
+    .anim-float-2 { animation: float-slow 13s ease-in-out infinite; }
+    .anim-pulse-glow { animation: pulse-glow 7s ease-in-out infinite; }
+    .anim-node-pulse { animation: pulse-node 2.5s ease-in-out infinite; }
+
+    .hover-lift {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px -8px rgba(0, 92, 85, 0.08), 0 4px 12px -2px rgba(19, 27, 46, 0.04);
+    }
+
+    .dropzone-glow {
+      background: radial-gradient(circle at center, rgba(156, 242, 232, 0.18) 0%, rgba(250, 248, 255, 0.4) 70%);
+      transition: all 0.3s ease;
+    }
+    .dropzone-glow:hover {
+      background: radial-gradient(circle at center, rgba(156, 242, 232, 0.32) 0%, rgba(219, 225, 255, 0.25) 75%);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary">
+<!-- DYNAMIC AMBIENT LIGHTING BACKGROUND (MATCHING SCREEN 3) -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<!-- Subtle Soft Mesh Gradient Background -->
+<div class="absolute inset-0 bg-gradient-to-b from-background/85 via-background/95 to-background"></div>
+<!-- Floating Aurora Orbs -->
+<div class="absolute top-10 left-1/4 w-[520px] h-[520px] rounded-full bg-primary-fixed/35 blur-3xl anim-float-1"></div>
+<div class="absolute top-1/3 -right-20 w-[460px] h-[460px] rounded-full bg-secondary-fixed/30 blur-3xl anim-float-2"></div>
+<div class="absolute bottom-20 left-10 w-[400px] h-[400px] rounded-full bg-tertiary-fixed/20 blur-3xl anim-pulse-glow"></div>
+</div>
+<!-- ==================== HEADER NAVIGATION ==================== -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 shadow-xs">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+<!-- Brand Logo & Title -->
+<div class="flex items-center gap-3 flex-shrink-0">
+<a class="flex items-center gap-2.5 group" data-path="trang-chu" href="#">
+<div class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">balance</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label font-bold text-base tracking-tight text-on-surface leading-none">VivaArena</span>
+<span class="font-label text-[10px] text-on-surface-variant font-medium tracking-wider mt-0.5 uppercase">Defense Simulator</span>
+</div>
+</a>
+</div>
+<!-- Main Navigation Links (Strict 6 Items, Active Pill on "Tài liệu") -->
+<nav class="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl" data-active-classes="bg-primary-container text-white font-semibold shadow-xs">
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="trang-chu" href="#">
+        Trang chủ
+      </a>
+<a aria-current="page" class="px-3.5 py-1.5 rounded-lg bg-primary text-white font-semibold shadow-xs text-sm font-label transition-all" data-path="tai-lieu" href="#">
+        Tài liệu
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="khoi-tao-de-tai" href="#">
+        Thiết lập đề tài
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="phong-tranh-bien" href="#">
+        Tranh biện
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="bang-diem" href="#">
+        Đánh giá
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" data-path="kho-de-an" href="#">
+        Kho đề án
+      </a>
+</nav>
+<!-- Student Profile & Quick Actions -->
+<div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+<button aria-label="Thông báo" class="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<div class="flex items-center gap-2 pl-2 border-l border-surface-container-high/80">
+<img alt="Avatar học viên" class="w-8 h-8 rounded-full ring-2 ring-primary/20 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms">
+<div class="hidden sm:flex flex-col text-left leading-tight">
+<span class="font-label text-xs text-on-surface font-semibold">Nguyễn Văn Khang</span>
+<span class="font-label text-[10px] text-on-surface-variant">Học viên Khóa 2025</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN CONTENT WRAPPER ==================== -->
+<main class="pt-20 min-h-screen relative z-10 flex flex-col pb-16">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-8">
+<!-- PAGE HERO HEADER -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pt-6 pb-4"><div class="flex flex-col max-w-2xl"><div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container-lowest/90 border border-primary/25 shadow-xs text-primary mb-3.5 w-fit"><span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span><span class="font-label text-xs font-semibold">Hệ thống phân tích hồ sơ đề án</span></div><h1 class="font-headline text-3xl sm:text-4xl lg:text-5xl font-medium text-on-surface leading-tight tracking-tight mb-2">Quản Lý &amp; Tải Tài Liệu <span class="font-headline font-semibold text-primary">Đề Án Học Thuật</span></h1><p class="font-body text-sm text-on-surface-variant leading-relaxed">Chuẩn hóa và đồng bộ các tài liệu nghiên cứu làm căn cứ đối soát cho phiên phản biện học thuật AI.</p></div></div>
+<!-- ==================== 2-COLUMN MAIN LAYOUT ==================== -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- LEFT COLUMN: Minimal Ingestion Dropzone & Clean Document Repositories (8 COLS) -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<!-- 1. Streamlined Academic Dropzone -->
+<section class="bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-highest/80 shadow-xs p-6 hover-lift relative overflow-hidden">
+<div class="flex items-center justify-between pb-4 border-b border-surface-container-high/60 mb-5">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shadow-xs">
+<span class="material-symbols-outlined text-[18px]">cloud_upload</span>
+</div>
+<h2 class="font-headline text-xl font-semibold text-on-surface">Nạp Tài Liệu Nghiên Cứu</h2>
+</div>
+<span class="font-label text-xs text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">
+              Hỗ trợ PDF, DOCX (Tối đa 50MB)
+            </span>
+</div>
+<!-- Interactive Drag & Drop Box -->
+<div class="dropzone-glow rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/60 p-8 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all group relative" id="fileDropTarget">
+<input accept=".pdf,.docx,.txt" class="hidden" id="fileSelector" type="file">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest shadow-md text-primary flex items-center justify-center group-hover:scale-110 transition-transform mb-3.5 border border-primary/20">
+<span class="material-symbols-outlined text-[32px]">upload_file</span>
+</div>
+<p class="font-headline text-lg sm:text-xl font-semibold text-on-surface">
+              Kéo &amp; thả tệp luận án vào đây, hoặc <span class="text-primary underline underline-offset-4 decoration-primary-fixed decoration-2 hover:text-primary-container">Chọn tệp từ máy tính</span>
+</p>
+<p class="font-body text-xs sm:text-sm text-on-surface-variant mt-1.5 max-w-md">
+              AI sẽ tự động chia đoạn ngữ nghĩa (Semantic Chunking) và trích xuất luận điểm khoa học phục vụ phản biện.
+            </p>
+<!-- Compact Tag Badges -->
+<div class="flex flex-wrap items-center justify-center gap-2 mt-5">
+<span class="px-3 py-1 rounded-full bg-surface-container-lowest border border-surface-container-high text-xs font-label text-on-surface-variant flex items-center gap-1.5 shadow-2xs">
+<span class="material-symbols-outlined text-primary text-[15px]">psychology</span> Bóc tách ngữ nghĩa
+              </span>
+<span class="px-3 py-1 rounded-full bg-surface-container-lowest border border-surface-container-high text-xs font-label text-on-surface-variant flex items-center gap-1.5 shadow-2xs">
+<span class="material-symbols-outlined text-secondary text-[15px]">account_tree</span> Sơ đồ luận cứ
+              </span>
+<span class="px-3 py-1 rounded-full bg-surface-container-lowest border border-surface-container-high text-xs font-label text-on-surface-variant flex items-center gap-1.5 shadow-2xs">
+<span class="material-symbols-outlined text-primary-container text-[15px]">verified_user</span> Bảo mật 100%
+              </span>
+</div>
+</div>
+</section>
+<!-- 2. Clean Document Cards Section -->
+<section class="flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-headline text-2xl font-semibold text-on-surface">Tài Liệu Đã Nạp Vào Hệ Thống (3)</h2>
+<p class="font-body text-xs sm:text-sm text-on-surface-variant mt-0.5">
+                Các tài liệu được liên kết làm căn cứ hỏi-đáp cho Hội đồng AI.
+              </p>
+</div>
+<!-- Search Mini Input -->
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant text-[18px]">search</span>
+<input class="pl-9 pr-3 py-1.5 text-xs rounded-xl bg-surface-container-lowest border border-surface-container-high focus:outline-none focus:border-primary w-48 text-on-surface" placeholder="Tìm tài liệu..." type="text">
+</div>
+</div>
+<!-- Document List Cards -->
+<div class="flex flex-col gap-3.5">
+<!-- DOC CARD 1: Active in Current Session -->
+<article class="doc-card bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl border-2 border-primary/40 shadow-xs p-5 hover-lift transition-all relative overflow-hidden" data-doc-id="doc-1">
+<!-- Top Row: Icon + Meta + Status -->
+<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+<div class="flex items-start gap-3.5 min-w-0">
+<div class="w-12 h-12 rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center flex-shrink-0 border border-primary/20">
+<span class="material-symbols-outlined text-[26px]">picture_as_pdf</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<h3 class="font-headline text-lg font-semibold text-on-surface truncate">
+                        Luan_Van_Thac_Si_Graph_Neural_Networks.pdf
+                      </h3>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-label font-bold bg-primary-container text-on-primary flex items-center gap-1.5 shadow-2xs">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed animate-ping"></span>
+                        Đang kích hoạt • Phiên 1
+                      </span>
+</div>
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant font-label mt-1.5">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">save</span> 14.2 MB</span>
+<span class="">•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">auto_stories</span> 148 trang</span>
+<span class="">•</span>
+<span class="flex items-center gap-1 font-semibold text-primary"><span class="material-symbols-outlined text-[14px]">segment</span> 18 phân đoạn</span>
+<span class="">•</span>
+<span class="">Nạp: 24/02/2025</span>
+</div>
+</div>
+</div>
+<!-- Knowledge Coverage Progress -->
+<div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0">
+<span class="font-label text-[11px] text-on-surface-variant uppercase tracking-wider block">Bao phủ tri thức</span>
+<div class="flex items-center gap-2 mt-0.5">
+<div class="w-24 bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 98%;"></div>
+</div>
+<span class="font-label text-xs font-bold text-primary">98%</span>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Topic Badge & Action Buttons -->
+<div class="mt-4 pt-3 border-t border-surface-container-high/60 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low text-xs font-label text-on-surface-variant">
+                    Chuyên ngành: Mạng Nơ-ron Đồ thị Phân tán
+                  </span>
+</div>
+<div class="flex items-center gap-2">
+<a class="px-4 py-1.5 rounded-xl bg-primary text-on-primary font-label text-xs font-semibold hover:bg-primary-container shadow-xs transition-colors flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+                    Bắt đầu phản biện
+                  </a>
+<button class="btn-inspect px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label text-xs font-semibold transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                    Xem trích đoạn
+                  </button>
+<button class="w-8 h-8 rounded-xl bg-surface-container-low hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors" title="Gỡ tài liệu">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+</article>
+<!-- DOC CARD 2: Stored in Knowledge Base -->
+<article class="doc-card bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-highest/80 shadow-xs p-5 hover-lift transition-all relative overflow-hidden" data-doc-id="doc-2">
+<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+<div class="flex items-start gap-3.5 min-w-0">
+<div class="w-12 h-12 rounded-xl bg-secondary-fixed/40 text-secondary flex items-center justify-center flex-shrink-0 border border-secondary/20">
+<span class="material-symbols-outlined text-[26px]">description</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<h3 class="font-headline text-lg font-semibold text-on-surface truncate">
+                        Bao_Cao_Nghien_Cuu_Kien_Truc_Microservices.docx
+                      </h3>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-label bg-surface-container-high text-on-surface-variant">
+                        Lưu trữ kho dữ liệu
+                      </span>
+</div>
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant font-label mt-1.5">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">save</span> 6.8 MB</span>
+<span class="">•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">auto_stories</span> 72 trang</span>
+<span class="">•</span>
+<span class="flex items-center gap-1 font-semibold text-secondary"><span class="material-symbols-outlined text-[14px]">segment</span> 12 phân đoạn</span>
+<span class="">•</span>
+<span class="">Nạp: 20/02/2025</span>
+</div>
+</div>
+</div>
+<div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0">
+<span class="font-label text-[11px] text-on-surface-variant uppercase tracking-wider block">Bao phủ tri thức</span>
+<div class="flex items-center gap-2 mt-0.5">
+<div class="w-24 bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 86%;"></div>
+</div>
+<span class="font-label text-xs font-bold text-secondary">86%</span>
+</div>
+</div>
+</div>
+<div class="mt-4 pt-3 border-t border-surface-container-high/60 flex flex-wrap items-center justify-between gap-3">
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low text-xs font-label text-on-surface-variant">
+                  Chuyên ngành: Kỹ thuật Phần mềm &amp; Hệ thống
+                </span>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-xl bg-primary-fixed text-on-primary-fixed font-label text-xs font-semibold hover:bg-primary-fixed-dim transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+                    Kích hoạt vào phiên
+                  </button>
+<button class="btn-inspect px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label text-xs font-semibold transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                    Xem trích đoạn
+                  </button>
+<button class="w-8 h-8 rounded-xl bg-surface-container-low hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors" title="Gỡ tài liệu">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+</article>
+<!-- DOC CARD 3: Slides -->
+<article class="doc-card bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-highest/80 shadow-xs p-5 hover-lift transition-all relative overflow-hidden" data-doc-id="doc-3">
+<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+<div class="flex items-start gap-3.5 min-w-0">
+<div class="w-12 h-12 rounded-xl bg-tertiary-fixed/50 text-tertiary flex items-center justify-center flex-shrink-0 border border-tertiary/20">
+<span class="material-symbols-outlined text-[26px]">slideshow</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<h3 class="font-headline text-lg font-semibold text-on-surface truncate">
+                        Slide_Thuyet_Trinh_Bao_Ve_Khoa_Luan.pdf
+                      </h3>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-label bg-surface-container-low text-on-surface-variant">
+                        Slide trực quan
+                      </span>
+</div>
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant font-label mt-1.5">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">save</span> 4.1 MB</span>
+<span class="">•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">view_carousel</span> 35 slides</span>
+<span class="">•</span>
+<span class="flex items-center gap-1 font-semibold text-tertiary"><span class="material-symbols-outlined text-[14px]">segment</span> 8 phân đoạn</span>
+<span class="">•</span>
+<span class="">Nạp: 18/02/2025</span>
+</div>
+</div>
+</div>
+<div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0">
+<span class="font-label text-[11px] text-on-surface-variant uppercase tracking-wider block">Bao phủ tri thức</span>
+<div class="flex items-center gap-2 mt-0.5">
+<div class="w-24 bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 79%;"></div>
+</div>
+<span class="font-label text-xs font-bold text-on-surface">79%</span>
+</div>
+</div>
+</div>
+<div class="mt-4 pt-3 border-t border-surface-container-high/60 flex flex-wrap items-center justify-between gap-3">
+<span class="px-2.5 py-1 rounded-lg bg-surface-container-low text-xs font-label text-on-surface-variant">
+                  Hình thức: Biểu đồ &amp; Kết quả thực nghiệm
+                </span>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label text-xs font-semibold transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+                    Dùng cho phiên mới
+                  </button>
+<button class="btn-inspect px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label text-xs font-semibold transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                    Xem trích đoạn
+                  </button>
+<button class="w-8 h-8 rounded-xl bg-surface-container-low hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors" title="Gỡ tài liệu">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+</div>
+</article>
+</div>
+</section>
+</div>
+<!-- RIGHT COLUMN: Core Knowledge Synthesis & Interactive Semantic Embedding Topology (4 COLS) -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- 1. Ground Truth & Core Syntheses Card -->
+<section class="bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-highest/80 shadow-xs p-6 hover-lift flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">analytics</span>
+<h3 class="font-headline text-xl font-semibold text-on-surface">Tóm Tắt Khung Nghiên Cứu</h3>
+</div>
+<span class="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-primary-fixed/80 text-primary font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+              Độ sẵn sàng 100%
+            </span>
+</div>
+<!-- Document Selected Indicator -->
+<div class="p-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/40 flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-[18px]">menu_book</span>
+<span class="font-label text-xs font-semibold text-on-surface truncate">
+              Luan_Van_Thac_Si_Graph_Neural_Networks.pdf
+            </span>
+</div>
+<!-- 3 Research Pillars -->
+<div class="flex flex-col gap-3 text-xs">
+<div class="p-3 rounded-xl bg-surface-container-low/60 border border-surface-container-high/30">
+<span class="font-label text-[11px] uppercase tracking-wide text-primary font-bold block mb-1">
+                1. Mục tiêu cốt lõi
+              </span>
+<p class="text-on-surface leading-relaxed">
+                Tối ưu hóa độ trễ tính toán và hạn chế hiện tượng nghẽn cổ chai (over-smoothing) trong huấn luyện Mạng Nơ-ron Đồ thị quy mô lớn.
+              </p>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-low/60 border border-surface-container-high/30">
+<span class="font-label text-[11px] uppercase tracking-wide text-secondary font-bold block mb-1">
+                2. Giả thuyết nghiên cứu
+              </span>
+<p class="text-on-surface leading-relaxed">
+                Cơ chế lan truyền thích ứng theo phân rã Fourier trên đồ thị giúp giảm tải 34% chi phí bộ nhớ so với GraphSAGE baseline.
+              </p>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-low/60 border border-surface-container-high/30">
+<span class="font-label text-[11px] uppercase tracking-wide text-tertiary font-bold block mb-1">
+                3. Luận điểm then chốt bảo vệ
+              </span>
+<ul class="list-disc pl-4 space-y-1 text-on-surface leading-relaxed">
+<li class="">Bộ dữ liệu đối chuẩn: Cora, Citeseer và OGB-Arxiv.</li>
+<li class="">Chứng minh toán học về tính hội tụ nghiệm của thuật toán.</li>
+<li class="">Khả năng kháng nhiễu biên (Edge perturbation).</li>
+</ul>
+</div>
+</div>
+<!-- Quick Action Button -->
+<a class="w-full py-3 px-4 rounded-xl bg-primary-container text-on-primary font-label text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary transition-all shadow-md shadow-primary/20 text-center" href="#">
+<span class="material-symbols-outlined text-[18px]">gavel</span>
+<span class="">Bắt đầu đối thoại với Hội đồng AI</span>
+</a>
+</section>
+<!-- 2. Dynamic Semantic Embedding Topology (Topology Interactive Map) -->
+<section class="bg-surface-container-lowest/90 backdrop-blur-md rounded-2xl border border-surface-container-highest/80 shadow-xs p-6 hover-lift flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">hub</span>
+<h3 class="font-headline text-lg font-semibold text-on-surface">Không Gian Đối Soát Tri Thức</h3>
+</div>
+<span class="font-label text-[11px] text-primary font-bold bg-primary-fixed/50 px-2 py-0.5 rounded-full">
+              Cosine Similarity &gt; 0.89
+            </span>
+</div>
+<p class="font-body text-xs text-on-surface-variant">
+            Bản đồ topo phân bố vector ngữ nghĩa của luận văn. AI tự động khoanh vùng các cụm luận cứ trọng yếu:
+          </p>
+<!-- SVG Visualizer with Pulsing Active Hub -->
+<div class="w-full bg-surface-container-low/50 rounded-xl p-3 border border-surface-container-high/50 relative overflow-hidden flex flex-col items-center">
+<svg class="w-full h-44" fill="none" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg">
+<!-- Background Connection Lines -->
+<path d="M 40 85 Q 90 35 150 75" stroke="#bdc9c6" stroke-dasharray="3 3" stroke-width="1.5"></path>
+<path d="M 150 75 Q 210 115 270 65" stroke="#bdc9c6" stroke-width="1.5"></path>
+<path d="M 150 75 L 180 120" stroke="#bdc9c6" stroke-dasharray="2 2" stroke-width="1.2"></path>
+<path d="M 40 85 L 90 125" stroke="#bdc9c6" stroke-width="1.2"></path>
+<!-- Cluster 1: Ch. 1 -->
+<g class="cursor-pointer group">
+<circle cx="40" cy="85" fill="#dae2fd" r="14"></circle>
+<circle cx="40" cy="85" fill="#0047bf" r="6"></circle>
+<text fill="#3e4947" font-family="Hanken Grotesk" font-size="8" font-weight="600" text-anchor="middle" x="40" y="112">CHƯƠNG 1</text>
+</g>
+<!-- Node: Sub-argument -->
+<g class="cursor-pointer">
+<circle cx="90" cy="125" fill="#eaedff" r="8"></circle>
+<circle cx="90" cy="125" fill="#006398" r="3.5"></circle>
+<text fill="#6e7977" font-family="Hanken Grotesk" font-size="7" text-anchor="middle" x="90" y="142">Lý thuyết nền</text>
+</g>
+<!-- Central Node: Ground Truth Core (Pulsing Animation) -->
+<g class="cursor-pointer">
+<circle class="anim-pulse-glow" cx="150" cy="75" fill="#9cf2e8" fill-opacity="0.55" r="22"></circle>
+<circle cx="150" cy="75" fill="#005c55" r="14"></circle>
+<circle cx="150" cy="75" fill="#ffffff" r="5"></circle>
+<text fill="#005c55" font-family="Hanken Grotesk" font-size="8.5" font-weight="700" text-anchor="middle" x="150" y="50">GROUND TRUTH</text>
+</g>
+<!-- Node: Experiment Data -->
+<g class="cursor-pointer">
+<circle cx="180" cy="120" fill="#cce5ff" r="9"></circle>
+<circle cx="180" cy="120" fill="#0047bf" r="4"></circle>
+<text fill="#6e7977" font-family="Hanken Grotesk" font-size="7" text-anchor="middle" x="180" y="138">Bảng số liệu 4.2</text>
+</g>
+<!-- Cluster 3: Evaluation -->
+<g class="cursor-pointer">
+<circle cx="270" cy="65" fill="#eaedff" r="16"></circle>
+<circle cx="270" cy="65" fill="#1e5fe7" r="7"></circle>
+<text fill="#3e4947" font-family="Hanken Grotesk" font-size="8" font-weight="600" text-anchor="middle" x="270" y="92">ĐÁNH GIÁ</text>
+</g>
+</svg>
+<div class="w-full flex items-center justify-between text-[11px] font-label text-on-surface-variant pt-2 border-t border-surface-container-high/40">
+<span class="flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[14px]">flag</span> Gắn cờ 4 điểm tranh biện tiềm tàng
+              </span>
+<span class="text-on-surface-variant font-mono">3 Cluster chính</span>
+</div>
+</div>
+</section>
+<!-- 3. Smart Preparation Tip Card -->
+<div class="rounded-2xl bg-surface-container-low/70 border border-surface-container-high/60 p-4 text-on-surface-variant flex items-start gap-3 text-xs leading-relaxed">
+<span class="material-symbols-outlined text-secondary text-[22px] flex-shrink-0 mt-0.5">tips_and_updates</span>
+<div class="">
+<strong class="text-on-surface font-label">Chiến lược chuẩn bị:</strong>
+            Hội đồng AI thường tập trung chất vấn vào các phân đoạn có độ bao phủ tri thức dưới 85%. Nạp thêm slide thuyết trình để AI tổng hợp đầy đủ số liệu thực nghiệm.
+          </div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- ==================== CLEAN MINIMAL FOOTER ==================== -->
+<footer class="w-full bg-surface-container-lowest/90 backdrop-blur-sm border-t border-surface-container-high/60 py-6 relative z-10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-on-surface-variant font-label text-xs">
+<div class="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+<span class="font-bold text-on-surface font-label">VivaArena</span>
+<span class="">•</span>
+<span class="">Nền tảng giả lập phản biện khóa luận tốt nghiệp AI © 2025</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="hover:text-primary transition-colors" href="#">Quy chuẩn hội đồng</a>
+<a class="hover:text-primary transition-colors" href="#">Tiêu chí đánh giá</a>
+<a class="hover:text-primary transition-colors" href="#">Bảo mật &amp; Hỗ trợ</a>
+</div>
+</div>
+</footer>
+<!-- Interactive Drag and Drop Scripts -->
+<script>
+  (function() {
+    const fileSelector = document.getElementById('fileSelector');
+    const fileDropTarget = document.getElementById('fileDropTarget');
+    const quickUploadTrigger = document.getElementById('quickUploadTrigger');
+
+    if (fileDropTarget && fileSelector) {
+      fileDropTarget.addEventListener('click', () => fileSelector.click());
+
+      if (quickUploadTrigger) {
+        quickUploadTrigger.addEventListener('click', () => {
+          fileDropTarget.scrollIntoView({ behavior: 'smooth' });
+          fileSelector.click();
+        });
+      }
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        fileDropTarget.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          fileDropTarget.classList.add('border-primary', 'bg-primary-fixed/20');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        fileDropTarget.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          fileDropTarget.classList.remove('border-primary', 'bg-primary-fixed/20');
+        }, false);
+      });
+    }
+
+    // Active Card State Selection
+    const docCards = document.querySelectorAll('.doc-card');
+    docCards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        docCards.forEach(c => {
+          c.classList.remove('border-primary', 'border-2');
+          c.classList.add('border-surface-container-highest/80');
+        });
+        card.classList.remove('border-surface-container-highest/80');
+        card.classList.add('border-primary', 'border-2');
+      });
+    });
+  })();
+</script>
+
+
+
+
+
+
+</body></html>

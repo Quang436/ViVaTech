@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VivaArena - Kho Đề Án &amp; Tiến Độ Luyện Tập</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-fixed": "#9cf2e8",
+            "primary-container": "#0f766e",
+            "error": "#ba1a1a",
+            "surface-dim": "#d2d9f4",
+            "on-primary-fixed-variant": "#00504a",
+            "surface-container": "#eaedff",
+            "on-error": "#ffffff",
+            "inverse-primary": "#80d5cb",
+            "on-tertiary": "#ffffff",
+            "error-container": "#ffdad6",
+            "secondary-fixed-dim": "#93ccff",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-container": "#a3faef",
+            "on-secondary-fixed-variant": "#004b73",
+            "surface-variant": "#dae2fd",
+            "on-surface-variant": "#3e4947",
+            "on-secondary-fixed": "#001d31",
+            "on-secondary-container": "#00476e",
+            "on-primary-fixed": "#00201d",
+            "inverse-on-surface": "#eef0ff",
+            "on-background": "#131b2e",
+            "on-tertiary-container": "#e6e9ff",
+            "surface-container-high": "#e2e7ff",
+            "surface-tint": "#006a63",
+            "background": "#faf8ff",
+            "on-surface": "#131b2e",
+            "on-primary": "#ffffff",
+            "tertiary": "#0047bf",
+            "on-tertiary-fixed-variant": "#003ea8",
+            "secondary": "#006398",
+            "primary": "#005c55",
+            "outline": "#6e7977",
+            "surface": "#faf8ff",
+            "on-tertiary-fixed": "#00174b",
+            "inverse-surface": "#283044",
+            "secondary-container": "#5bb8fe",
+            "on-error-container": "#93000a",
+            "outline-variant": "#bdc9c6",
+            "secondary-fixed": "#cce5ff",
+            "surface-bright": "#faf8ff",
+            "tertiary-fixed-dim": "#b4c5ff",
+            "surface-container-low": "#f2f3ff",
+            "on-secondary": "#ffffff",
+            "tertiary-fixed": "#dbe1ff",
+            "primary-fixed-dim": "#80d5cb",
+            "tertiary-container": "#1e5fe7",
+            "surface-container-highest": "#dae2fd"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          fontFamily: {
+            headline: ["Newsreader", "serif"],
+            display: ["Newsreader", "serif"],
+            body: ["Manrope", "sans-serif"],
+            label: ["Hanken Grotesk", "sans-serif"]
+          }
+        },
+      },
+    }
+</script>
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #faf8ff;
+        color: #131b2e;
+        font-family: 'Manrope', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, .font-editorial {
+        font-family: 'Newsreader', serif;
+      }
+      .font-label {
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+    }
+
+    @keyframes float-ambient {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-14px) rotate(2deg); }
+    }
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(16px) scale(1.04); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.08); }
+    }
+    @keyframes node-pulse {
+      0%, 100% { r: 5.5; opacity: 1; }
+      50% { r: 7.5; opacity: 0.8; }
+    }
+
+    .anim-float-1 { animation: float-ambient 10s ease-in-out infinite; }
+    .anim-float-2 { animation: float-slow 14s ease-in-out infinite; }
+    .anim-pulse-glow { animation: pulse-glow 7s ease-in-out infinite; }
+    .pulse-node { animation: node-pulse 2.5s ease-in-out infinite; }
+
+    .hover-lift {
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 28px -10px rgba(0, 92, 85, 0.1), 0 6px 12px -6px rgba(0, 0, 0, 0.04);
+    }
+</style>
+</head>
+<body class="bg-background text-on-surface min-h-screen relative overflow-x-hidden selection:bg-primary-fixed selection:text-primary">
+<!-- ==================== AMBIENT LIGHTING BACKGROUND ==================== -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-b from-background/90 via-background/95 to-background"></div>
+<div class="absolute top-10 left-1/4 w-[540px] h-[540px] rounded-full bg-primary-fixed/30 blur-3xl anim-float-1"></div>
+<div class="absolute top-1/3 -right-20 w-[500px] h-[500px] rounded-full bg-secondary-fixed/25 blur-3xl anim-float-2"></div>
+<div class="absolute bottom-16 left-12 w-[440px] h-[440px] rounded-full bg-tertiary-fixed/20 blur-3xl anim-pulse-glow"></div>
+</div>
+<!-- ==================== HEADER NAVIGATION ==================== -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/85 backdrop-blur-md border-b border-surface-container-high/60 shadow-xs">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+<!-- Brand Logo -->
+<div class="flex items-center gap-3 flex-shrink-0">
+<a class="flex items-center gap-2.5 group" href="#">
+<div class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs group-hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">balance</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label font-bold text-base tracking-tight text-on-surface leading-none">VivaArena</span>
+<span class="font-label text-[10px] text-on-surface-variant font-medium tracking-wider mt-0.5 uppercase">Defense Simulator</span>
+</div>
+</a>
+</div>
+<!-- Main Navigation Links (6 Tab Dashboard - Kho Đề Án Active) -->
+<nav class="hidden md:flex items-center gap-1 bg-surface-container-low/70 p-1 rounded-xl">
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" href="#">
+        Trang chủ
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" href="#">
+        Tài liệu
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" href="#">
+        Thiết lập đề tài
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" href="#">
+        Tranh biện
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label text-sm transition-all" href="#">
+        Đánh giá
+      </a>
+<a aria-current="page" class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-semibold shadow-xs font-label text-sm transition-all ring-1 ring-primary/10" href="#">
+        Kho đề án
+      </a>
+</nav>
+<!-- Student Profile & Actions -->
+<div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+<button aria-label="Thông báo" class="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<div class="flex items-center gap-2 pl-2 border-l border-surface-container-high/80">
+<img alt="Avatar học viên" class="w-8 h-8 rounded-full ring-2 ring-primary/20 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjGexftNC_DNLJj7IX4Z7rHQ_XTgpKbqOiwpp0s5LxgeGmdFtlRXRPKEmkGo1gI8yBzrul2zPhizefq5gsyRzi49YA88bhhRMiBTpSaeaZVdF3HnMhqLNRo1CAhxy9PZPyOd8z7uq2pcseL7JSsrXAP5Jn_5IbfFCZy6q-Eb9a098cU2FmFpSREXLX7BmU2Pv2opto9iHC8gYrfMSBczNO__akHUIM84VMgfGyw9Ms"/>
+<div class="hidden sm:flex flex-col text-left leading-tight">
+<span class="font-label text-xs text-on-surface font-semibold">Nguyễn Văn Khang</span>
+<span class="font-label text-[10px] text-on-surface-variant">Học viên Khóa 2025</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN CONTENT ==================== -->
+<main class="relative z-10 pt-24 pb-16 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+<!-- Hero / Portfolio Header -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-5 pb-6 border-b border-surface-container-high/70">
+<div class="max-w-3xl">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label text-xs font-semibold tracking-wide mb-3 border border-primary/20">
+<span class="material-symbols-outlined text-sm text-primary">workspace_premium</span>
+<span>HỒ SƠ MINH CHỨNG &amp; TIẾN ĐỘ HỌC THUẬT</span>
+</div>
+<h1 class="font-headline text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-on-surface leading-tight">
+        Hồ sơ Năng lực &amp; Lịch sử Đề án
+      </h1>
+<p class="font-body text-sm sm:text-base text-on-surface-variant mt-2 leading-relaxed">
+        Theo dõi trực quan hành trình bứt phá tư duy phản biện qua từng phiên thử lửa với Hội đồng AI.
+      </p>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-3 self-start md:self-auto flex-shrink-0">
+<button class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-surface-container-high bg-surface-container-lowest/90 text-on-surface font-label text-sm font-semibold hover:bg-surface-container-low transition-all shadow-xs hover-lift">
+<span class="material-symbols-outlined text-[19px] text-primary">download</span>
+<span>Xuất E-Portfolio</span>
+</button>
+<button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-container text-on-primary font-label text-sm font-semibold hover:bg-primary transition-all shadow-md shadow-primary/20 hover-lift">
+<span class="material-symbols-outlined text-[19px]">add_circle</span>
+<span>Tạo Phiên Mới</span>
+</button>
+</div>
+</section>
+<!-- 4 Focused KPI Cards -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- KPI 1 -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-surface-container-high/80 hover-lift flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-3">
+<span class="font-label text-xs font-semibold uppercase tracking-wider">Số phiên bảo vệ</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-low text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[19px]">fact_check</span>
+</div>
+</div>
+<div>
+<div class="font-headline text-3xl sm:text-4xl font-bold text-on-surface tracking-tight">14</div>
+<div class="font-label text-xs text-on-surface-variant mt-1.5">
+          Tổng thời lượng: <span class="font-semibold text-on-surface">4 giờ 25 phút</span>
+</div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-primary/25 ring-1 ring-primary/10 hover-lift flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-3">
+<span class="font-label text-xs font-semibold uppercase tracking-wider">Điểm trung bình</span>
+<div class="w-8 h-8 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[19px]">award_star</span>
+</div>
+</div>
+<div>
+<div class="font-headline text-3xl sm:text-4xl font-bold text-primary tracking-tight">
+          82.8<span class="font-body text-sm font-normal text-on-surface-variant">/100</span>
+</div>
+<div class="font-label text-xs text-primary font-semibold mt-1.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+          Tăng 9.2 điểm so với phiên đầu
+        </div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-surface-container-high/80 hover-lift flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-3">
+<span class="font-label text-xs font-semibold uppercase tracking-wider">Độ sẵn sàng bảo vệ</span>
+<div class="w-8 h-8 rounded-lg bg-secondary-fixed/50 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[19px]">verified_user</span>
+</div>
+</div>
+<div>
+<div class="font-headline text-3xl sm:text-4xl font-bold text-secondary tracking-tight">89%</div>
+<div class="font-label text-xs text-on-surface-variant font-medium mt-1.5">
+          Mức độ: <span class="text-secondary font-bold">Rất an toàn</span> (Phản xạ 0.8s)
+        </div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-surface-container-high/80 hover-lift flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-3">
+<span class="font-label text-xs font-semibold uppercase tracking-wider">Cải thiện tư duy logic</span>
+<div class="w-8 h-8 rounded-lg bg-amber-100/70 text-amber-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[19px]">psychology</span>
+</div>
+</div>
+<div>
+<div class="font-headline text-3xl sm:text-4xl font-bold text-on-surface tracking-tight">+28.4%</div>
+<div class="font-label text-xs text-on-surface-variant mt-1.5">
+          Giảm ngụy biện xuống <span class="font-semibold text-on-surface">0.4 lỗi / phiên</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Interactive Cognitive Growth Curve Vector Graph -->
+<section class="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-6 sm:p-7 border border-surface-container-high/80 shadow-sm hover-lift">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-surface-container-high/60">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">insights</span>
+<h2 class="font-headline text-xl sm:text-2xl font-semibold text-on-surface">
+            Đường Cong Nhận Thức (Cognitive Growth Curve)
+          </h2>
+</div>
+<p class="font-body text-xs sm:text-sm text-on-surface-variant mt-1">
+          Theo dõi tốc độ tăng trưởng độ vững phương pháp, khả năng chịu áp lực và điểm thẩm định qua 3 tuần.
+        </p>
+</div>
+<!-- Graph Legend -->
+<div class="flex flex-wrap items-center gap-4 text-xs font-label font-semibold text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span>Điểm Thẩm định</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-3 rounded-full bg-amber-500"></span>
+<span>Chịu tải Stress AI</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+<span>Độ vững phương pháp</span>
+</div>
+</div>
+</div>
+<!-- SVG Progress Curve -->
+<div class="w-full mt-4 pt-2">
+<svg class="w-full h-60 font-label text-xs" preserveaspectratio="none" viewbox="0 0 900 230">
+<defs>
+<lineargradient id="scoreAreaLight" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#005c55" stop-opacity="0.18"></stop>
+<stop offset="100%" stop-color="#005c55" stop-opacity="0.0"></stop>
+</lineargradient>
+<lineargradient id="stressAreaLight" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#f59e0b" stop-opacity="0.10"></stop>
+<stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Horizontal Reference Grid -->
+<line stroke="#eaedff" stroke-width="1" x1="50" x2="870" y1="25" y2="25"></line>
+<text fill="#6e7977" font-size="10" x="25" y="29">100</text>
+<line stroke="#eaedff" stroke-width="1" x1="50" x2="870" y1="75" y2="75"></line>
+<text fill="#6e7977" font-size="10" x="25" y="79">80</text>
+<line stroke="#eaedff" stroke-width="1" x1="50" x2="870" y1="125" y2="125"></line>
+<text fill="#6e7977" font-size="10" x="25" y="129">60</text>
+<line stroke="#eaedff" stroke-width="1" x1="50" x2="870" y1="175" y2="175"></line>
+<text fill="#6e7977" font-size="10" x="25" y="179">40</text>
+<!-- Vertical Milestone Markers -->
+<line stroke="#dae2fd" stroke-dasharray="4 4" stroke-width="1.2" x1="170" x2="170" y1="20" y2="185"></line>
+<line stroke="#dae2fd" stroke-dasharray="4 4" stroke-width="1.2" x1="470" x2="470" y1="20" y2="185"></line>
+<line stroke="#dae2fd" stroke-dasharray="4 4" stroke-width="1.2" x1="770" x2="770" y1="20" y2="185"></line>
+<text fill="#3e4947" font-weight="600" text-anchor="middle" x="170" y="208">Tuần 1: Căn bản</text>
+<text fill="#3e4947" font-weight="600" text-anchor="middle" x="470" y="208">Tuần 2: Peer Review</text>
+<text fill="#005c55" font-weight="700" text-anchor="middle" x="770" y="208">Tuần 3: Stress-Test Toàn diện</text>
+<!-- Area: Stress AI (Amber) -->
+<path d="M 170 148 C 270 142, 370 118, 470 94 C 570 76, 670 64, 770 48 L 770 185 L 170 185 Z" fill="url(#stressAreaLight)"></path>
+<path d="M 170 148 C 270 142, 370 118, 470 94 C 570 76, 670 64, 770 48" fill="none" stroke="#f59e0b" stroke-width="2.5"></path>
+<!-- Line: Methodology Curve (Secondary Blue) -->
+<path d="M 170 160 C 270 146, 370 112, 470 86 C 570 72, 670 58, 770 42" fill="none" stroke="#006398" stroke-dasharray="5 4" stroke-width="2.2"></path>
+<!-- Area & Line: Thesis Score (Primary) -->
+<path d="M 170 136 C 270 120, 370 88, 470 66 C 570 52, 670 38, 770 28 L 770 185 L 170 185 Z" fill="url(#scoreAreaLight)"></path>
+<path d="M 170 136 C 270 120, 370 88, 470 66 C 570 52, 670 38, 770 28" fill="none" stroke="#005c55" stroke-width="3"></path>
+<!-- Interactivity Nodes -->
+<circle cx="170" cy="136" fill="#ffffff" r="4.5" stroke="#005c55" stroke-width="2.5"></circle>
+<circle cx="470" cy="66" fill="#ffffff" r="4.5" stroke="#005c55" stroke-width="2.5"></circle>
+<circle class="pulse-node" cx="770" cy="28" fill="#005c55" r="5.5" stroke="#ffffff" stroke-width="2"></circle>
+<!-- High-Score Floating Badge -->
+<rect fill="#005c55" height="22" rx="6" width="84" x="728" y="2"></rect>
+<text fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle" x="770" y="17">91.0 ĐIỂM</text>
+</svg>
+</div>
+</section>
+<!-- 2-Column: Recent Sessions (8 cols) & Action Recommendations (4 cols) -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- Left Column: Sessions List (8 cols) -->
+<div class="lg:col-span-8 space-y-4">
+<div class="flex items-center justify-between pb-1">
+<div>
+<h2 class="font-headline text-2xl font-semibold text-on-surface">Danh sách Phiên Luyện tập Gần nhất</h2>
+<p class="font-body text-xs text-on-surface-variant">Lịch sử đánh giá từ các phiên bảo vệ đối kháng với Hội đồng AI.</p>
+</div>
+<span class="font-label text-xs text-primary bg-primary-fixed/50 px-3 py-1 rounded-full font-bold">
+          3 phiên mới nhất
+        </span>
+</div>
+<!-- Session 1: Good / Passing -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-surface-container-high/80 hover-lift shadow-xs">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-label font-bold text-xs">
+              Cấp độ 2 • Academic Reviewer
+            </span>
+<span class="font-label text-xs text-on-surface-variant">2 ngày trước (14:32)</span>
+</div>
+<span class="inline-flex items-center gap-1.5 text-xs font-label font-bold px-3 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> ĐẠT YÊU CẦU
+          </span>
+</div>
+<div class="flex items-start justify-between gap-4 my-2">
+<div>
+<h3 class="font-headline text-lg sm:text-xl font-bold text-on-surface hover:text-primary transition-colors cursor-pointer">
+              Phiên 1: Hệ thống GNN &amp; BERT Phát hiện Tin giả
+            </h3>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-2 leading-relaxed">
+              Đề án ứng dụng Graph Neural Network kết hợp BERT phân tích ngữ nghĩa lan truyền tin thất thiệt trên mạng xã hội đa ngữ.
+            </p>
+</div>
+<div class="text-right shrink-0">
+<div class="font-headline text-3xl font-bold text-primary">83.5<span class="text-xs font-normal text-on-surface-variant">/100</span></div>
+<span class="font-label text-[11px] text-on-surface-variant">Hội đồng GPT-4o</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-surface-container-high/60 text-xs font-label text-on-surface-variant">
+<div class="flex items-center gap-4 flex-wrap">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">timer</span> 22m 15s</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">forum</span> 14 chất vấn</span>
+<span class="flex items-center gap-1 text-amber-700 font-semibold"><span class="material-symbols-outlined text-[16px]">warning</span> 1 lỗi ngụy biện</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-xl border border-surface-container-high text-on-surface font-semibold hover:bg-surface-container-low transition-colors">
+              Xem Bảng Điểm
+            </button>
+<button class="px-3.5 py-1.5 rounded-xl bg-primary-fixed text-on-primary-fixed-variant font-bold hover:bg-primary-fixed/80 transition-colors">
+              Diễn tập lại
+            </button>
+</div>
+</div>
+</div>
+<!-- Session 2: Needs Review -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-surface-container-high/80 hover-lift shadow-xs">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container font-label font-bold text-xs">
+              Cấp độ 3 • Stress-Test Khó
+            </span>
+<span class="font-label text-xs text-on-surface-variant">5 ngày trước (09:15)</span>
+</div>
+<span class="inline-flex items-center gap-1.5 text-xs font-label font-bold px-3 py-0.5 rounded-full bg-amber-100/80 text-amber-800 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> CẦN ÔN LẠI
+          </span>
+</div>
+<div class="flex items-start justify-between gap-4 my-2">
+<div>
+<h3 class="font-headline text-lg sm:text-xl font-bold text-on-surface hover:text-primary transition-colors cursor-pointer">
+              Phiên 2: Kiến trúc Vi dịch vụ cho E-commerce
+            </h3>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-2 leading-relaxed">
+              Đánh giá khả năng chịu lỗi (fault-tolerance), giải thuật đồng thuận CAP theorem và chi phí phân mảnh cơ sở dữ liệu phân tán.
+            </p>
+</div>
+<div class="text-right shrink-0">
+<div class="font-headline text-3xl font-bold text-amber-700">74.0<span class="text-xs font-normal text-on-surface-variant">/100</span></div>
+<span class="font-label text-[11px] text-on-surface-variant">Hội đồng Claude-3.5</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-surface-container-high/60 text-xs font-label text-on-surface-variant">
+<div class="flex items-center gap-4 flex-wrap">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">timer</span> 35m 40s</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">forum</span> 21 chất vấn</span>
+<span class="flex items-center gap-1 text-error font-semibold"><span class="material-symbols-outlined text-[16px]">error</span> 2 lỗi Strawman</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-xl border border-surface-container-high text-on-surface font-semibold hover:bg-surface-container-low transition-colors">
+              Xem Bảng Điểm
+            </button>
+<button class="px-3.5 py-1.5 rounded-xl bg-primary-fixed text-on-primary-fixed-variant font-bold hover:bg-primary-fixed/80 transition-colors">
+              Diễn tập lại
+            </button>
+</div>
+</div>
+</div>
+<!-- Session 3: Excellent -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-sm rounded-2xl p-5 border border-primary/20 hover-lift shadow-xs">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label font-bold text-xs">
+              Cấp độ 1 • Feynman Method
+            </span>
+<span class="font-label text-xs text-on-surface-variant">1 tuần trước (16:40)</span>
+</div>
+<span class="inline-flex items-center gap-1.5 text-xs font-label font-bold px-3 py-0.5 rounded-full bg-primary-container text-on-primary w-fit">
+<span class="material-symbols-outlined text-[14px]">verified</span> XUẤT SẮC
+          </span>
+</div>
+<div class="flex items-start justify-between gap-4 my-2">
+<div>
+<h3 class="font-headline text-lg sm:text-xl font-bold text-on-surface hover:text-primary transition-colors cursor-pointer">
+              Phiên 3: Mạng nơ-ron tích chập trong Y tế
+            </h3>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-2 leading-relaxed">
+              Mô hình giải thích (Explainable AI - Grad-CAM) trong hỗ trợ phân loại tổn thương phổi trên ảnh X-quang lồng ngực.
+            </p>
+</div>
+<div class="text-right shrink-0">
+<div class="font-headline text-3xl font-bold text-primary">91.0<span class="text-xs font-normal text-on-surface-variant">/100</span></div>
+<span class="font-label text-[11px] text-on-surface-variant">Hội đồng Llama-3</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-surface-container-high/60 text-xs font-label text-on-surface-variant">
+<div class="flex items-center gap-4 flex-wrap">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">timer</span> 18m 02s</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">forum</span> 11 chất vấn</span>
+<span class="flex items-center gap-1 text-primary font-bold"><span class="material-symbols-outlined text-[16px]">check_circle</span> 0 lỗi ngụy biện</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-xl border border-surface-container-high text-on-surface font-semibold hover:bg-surface-container-low transition-colors">
+              Xem Bảng Điểm
+            </button>
+<button class="px-3.5 py-1.5 rounded-xl bg-primary-fixed text-on-primary-fixed-variant font-bold hover:bg-primary-fixed/80 transition-colors">
+              Diễn tập lại
+            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Quick Action Recommendations (4 cols) -->
+<div class="lg:col-span-4 space-y-4">
+<div class="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-6 border border-surface-container-high/80 shadow-xs hover-lift">
+<div class="flex items-center gap-2.5 mb-1.5">
+<span class="material-symbols-outlined text-primary text-[22px]">auto_fix_high</span>
+<h2 class="font-headline text-xl font-bold text-on-surface">Đề Xuất Cải Thiện</h2>
+</div>
+<p class="font-body text-xs text-on-surface-variant mb-5">
+          Các bài tập rèn phản xạ nhanh được AI tinh chỉnh cho điểm yếu của bạn.
+        </p>
+<div class="space-y-3.5">
+<!-- Drill 1 -->
+<div class="p-4 rounded-xl border border-surface-container-high bg-surface-container-low/60 hover:bg-surface-container-low transition-all">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[11px] font-label font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                ƯU TIÊN CAO
+              </span>
+<span class="font-label text-[11px] text-on-surface-variant font-semibold">15 phút</span>
+</div>
+<h4 class="font-label text-xs font-bold text-on-surface">
+              Ước lượng độ phức tạp Big-O khi thuyết trình
+            </h4>
+<p class="font-body text-xs text-on-surface-variant mt-1 leading-snug">
+              Luyện tập giải trình cận trên thuật toán mà không nhìn slide tài liệu.
+            </p>
+<a class="inline-flex items-center gap-1 font-label text-xs font-bold text-primary hover:underline mt-3" href="#">
+              Bắt đầu đọc <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</div>
+<!-- Drill 2 -->
+<div class="p-4 rounded-xl border border-surface-container-high bg-surface-container-low/60 hover:bg-surface-container-low transition-all">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[11px] font-label font-bold text-secondary bg-secondary-fixed px-2.5 py-0.5 rounded-full">
+                PHẢN XẠ NHANH
+              </span>
+<span class="font-label text-[11px] text-on-surface-variant font-semibold">5 phút</span>
+</div>
+<h4 class="font-label text-xs font-bold text-on-surface">
+              Phản biện đối kháng tốc độ cao
+            </h4>
+<p class="font-body text-xs text-on-surface-variant mt-1 leading-snug">
+              Bẻ gãy 5 luận điểm ngụy biện ngầm trong 60 giây mỗi lượt chất vấn.
+            </p>
+<a class="inline-flex items-center gap-1 font-label text-xs font-bold text-primary hover:underline mt-3" href="#">
+              Vào phòng luyện <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Sync Verification Note -->
+<div class="mt-5 pt-4 border-t border-surface-container-high/60 flex items-center gap-2.5 text-xs font-label text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-[19px]">verified</span>
+<span>Tự động đồng bộ minh chứng vào E-Portfolio học viện.</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- ==================== MINIMAL FOOTER ==================== -->
+<footer class="w-full bg-surface-container-lowest/90 backdrop-blur-sm border-t border-surface-container-high/60 py-6 mt-12 relative z-10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-on-surface-variant font-label text-xs">
+<div class="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+<span class="font-bold text-on-surface">VivaArena</span>
+<span>•</span>
+<span>Nền tảng Giả lập Phản biện Luận án AI © 2025</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="hover:text-primary transition-colors" href="#">Quy chuẩn Hội đồng</a>
+<a class="hover:text-primary transition-colors" href="#">Khung Phương pháp luận</a>
+<a class="hover:text-primary transition-colors" href="#">Trung tâm Trợ giúp</a>
+</div>
+</div>
+</footer>
+</body></html>
